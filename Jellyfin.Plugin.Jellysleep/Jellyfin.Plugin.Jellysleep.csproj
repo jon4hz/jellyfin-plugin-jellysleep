@@ -1,0 +1,84 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Jellyfin.Plugin.Jellysleep</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <CodeAnalysisRuleSet>../jellyfin.ruleset</CodeAnalysisRuleSet>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <PublishDeps>true</PublishDeps>
+
+    <!-- Version Information -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <PluginVersion>1.0.0.0</PluginVersion>
+
+    <!-- Package Information -->
+    <PackageId>Jellyfin.Plugin.Jellysleep</PackageId>
+    <Title>Jellysleep</Title>
+    <Authors>jon4hz</Authors>
+    <Description>A Jellyfin plugin for Jellysleep</Description>
+    <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/jon4hz/jellyfin-plugin-jellysleep</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.7" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.7" />
+    <PackageReference Include="Humanizer.Core" Version="2.14.1" PrivateAssets="none" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SerilogAnalyzer" Version="0.15.0" PrivateAssets="All" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="All" />
+    <PackageReference Include="SmartAnalyzers.MultithreadingAnalyzer" Version="1.1.31" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Web\jellysleep.js" />
+    <EmbeddedResource Include="Web\jellysleep.js" />
+  </ItemGroup>
+
+  <!-- Create plugin package -->
+  <Target Name="CreatePluginPackage" AfterTargets="Publish" Condition="'$(Configuration)' == 'Release'">
+    <PropertyGroup>
+      <PluginDir>$(MSBuildProjectDirectory)/../bin/plugin</PluginDir>
+      <PluginArchive>$(MSBuildProjectDirectory)/../bin/jellyfin-plugin-jellysleep-$(PluginVersion).zip</PluginArchive>
+    </PropertyGroup>
+
+    <!-- Include only specific DLLs we want in the plugin package -->
+    <ItemGroup>
+      <!-- Always include the main plugin DLL -->
+      <PluginFiles Include="$(PublishDir)$(AssemblyName).dll" />
+      <!-- Include specific third-party dependencies -->
+      <PluginFiles Include="$(PublishDir)Humanizer.dll" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(PluginDir)" />
+    <MakeDir Directories="$(PluginDir)" />
+
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginDir)" />
+
+    <!-- Log what files are being included -->
+    <Message Text="Plugin package contents:" Importance="high" />
+    <Message Text="  - %(PluginFiles.Filename)%(PluginFiles.Extension)" Importance="high" />
+
+    <!-- Use cross-platform zip command or fallback -->
+    <Exec Command="which zip > /dev/null 2>&amp;1 &amp;&amp; cd &quot;$(PluginDir)&quot; &amp;&amp; zip -r &quot;$(PluginArchive)&quot; . || echo 'zip command not available, package created in $(PluginDir)'"
+          ContinueOnError="true" />
+
+    <Message Text="Plugin files prepared in: $(PluginDir)" Importance="high" />
+    <Message Text="Plugin package: $(PluginArchive)" Importance="high" Condition="Exists('$(PluginArchive)')" />
+  </Target>
+
+</Project>

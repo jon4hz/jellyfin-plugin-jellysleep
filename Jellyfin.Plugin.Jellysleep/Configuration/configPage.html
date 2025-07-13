@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Jellysleep Configuration</title>
+  </head>
+
+  <body>
+    <div
+      id="JellysleepConfigPage"
+      data-role="page"
+      class="page type-interior pluginConfigurationPage"
+      data-require="emby-input,emby-button,emby-select,emby-checkbox"
+    >
+      <div data-role="content">
+        <div class="content-primary">
+          <form id="JellysleepConfigForm">
+            <div class="sectionTitleContainer flex align-items-center">
+              <h2 class="sectionTitle">Jellysleep Configuration</h2>
+            </div>
+
+            <div class="checkboxContainer checkboxContainer-withDescription">
+              <label class="emby-checkbox-label">
+                <input id="jellysleepEnabled" type="checkbox" is="emby-checkbox" />
+                <span>Enable Jellysleep Integration</span>
+              </label>
+              <div class="fieldDescription checkboxFieldDescription">
+                Enable or disable the Jellysleep plugin functionality.
+              </div>
+            </div>
+            <div>
+              <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                <span>Save</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <script type="text/javascript">
+        var JellysleepConfig = {
+          pluginUniqueId: 'a760bbb5-7b7b-4fda-951c-f3c39d689a8f',
+        };
+
+        document.querySelector('#JellysleepConfigPage').addEventListener('pageshow', function () {
+          Dashboard.showLoadingMsg();
+          ApiClient.getPluginConfiguration(JellysleepConfig.pluginUniqueId).then(function (config) {
+            $('#jellysleepEnabled').prop('checked', config.IsEnabled || false);
+            Dashboard.hideLoadingMsg();
+          });
+        });
+
+        document.querySelector('#JellysleepConfigPage').addEventListener('submit', function (e) {
+          Dashboard.showLoadingMsg();
+          ApiClient.getPluginConfiguration(JellysleepConfig.pluginUniqueId).then(function (config) {
+            var isEnabled = $('#jellysleepEnabled').prop('checked');
+            config.IsEnabled = isEnabled;
+            ApiClient.updatePluginConfiguration(JellysleepConfig.pluginUniqueId, config).then(function (result) {
+              Dashboard.processPluginConfigurationUpdateResult(result);
+            });
+          });
+
+          e.preventDefault();
+          return false;
+        });
+      </script>
+    </div>
+  </body>
+</html>

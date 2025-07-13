@@ -1,0 +1,56 @@
+name: 'CI Build'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: './global.json'
+
+      - name: Restore dependencies
+        run: dotnet restore Jellyfin.Plugin.Jellysleep.sln
+
+      - name: Build
+        run: dotnet build Jellyfin.Plugin.Jellysleep.sln --no-restore --configuration Release
+
+      - name: Test Build Output
+        run: |
+          if [ ! -f "Jellyfin.Plugin.Jellysleep/bin/Release/net8.0/Jellyfin.Plugin.Jellysleep.dll" ]; then
+            echo "Build failed - DLL not found"
+            exit 1
+          fi
+          echo "Build successful - Plugin DLL found"
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore Jellyfin.Plugin.Jellysleep.sln
+
+      - name: Run Code Analysis
+        run: |
+          dotnet build Jellyfin.Plugin.Jellysleep.sln \
+            --configuration Release \
+            --verbosity normal \
+            /p:TreatWarningsAsErrors=true

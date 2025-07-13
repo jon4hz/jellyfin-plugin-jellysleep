@@ -1,0 +1,40 @@
+name: pre-commit
+
+on:
+  pull_request:
+    types: [labeled, opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+jobs:
+  pre-commit:
+    if: github.event.action != 'labeled' || github.event.label.name == 'pre-commit ci run'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Remove pre-commit ci run label
+        if: github.event.action == 'labeled' && github.event.label.name == 'pre-commit ci run'
+        run: gh pr edit ${{ github.event.number }} --remove-label 'pre-commit ci run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: './global.json'
+
+      - name: Restore dependencies
+        run: dotnet restore Jellyfin.Plugin.Jellysleep.sln
+
+      - name: Install gitleaks
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/scripts/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+      - name: pre-commit ci lite
+        uses: pre-commit-ci/lite-action@v1.1.0
+        if: always()

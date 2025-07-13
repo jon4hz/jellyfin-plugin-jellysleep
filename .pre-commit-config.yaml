@@ -1,0 +1,57 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.ci for more information
+# Note: Using pre-commit.ci lite with GitHub Actions for custom tooling support
+repos:
+  # Built-in hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: '(static/static/dist/style\.css|\.json)$'
+      - id: check-yaml
+      - id: check-json
+        exclude: '\.vscode/.*\.json' # fix this
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # Gitleaks - Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.27.2
+    hooks:
+      - id: gitleaks
+
+  # .NET hooks
+  - repo: https://github.com/dotnet/format
+    rev: v8.0.453106
+    hooks:
+      - id: dotnet-format
+        name: dotnet format
+        entry: dotnet format
+        language: system
+        files: \.(cs|vb)$
+        pass_filenames: false
+
+  # Custom .NET hooks using local system
+  - repo: local
+    hooks:
+      - id: dotnet-build
+        name: dotnet build
+        entry: dotnet build
+        language: system
+        files: \.(cs|csproj|sln)$
+        pass_filenames: false
+
+      - id: dotnet-test
+        name: dotnet test
+        entry: dotnet test --no-build
+        language: system
+        files: \.(cs|csproj)$
+        pass_filenames: false
+
+      - id: dotnet-restore
+        name: dotnet restore
+        entry: dotnet restore
+        language: system
+        files: \.(csproj|sln|packages\.config)$
+        pass_filenames: false

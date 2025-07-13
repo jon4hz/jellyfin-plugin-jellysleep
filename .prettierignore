@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+bin/
+obj/
+dist/
+build/
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package files
+*.nupkg
+*.zip
+*.tar.gz
+
+# Specific file types to ignore
+*.min.js
+*.min.css
