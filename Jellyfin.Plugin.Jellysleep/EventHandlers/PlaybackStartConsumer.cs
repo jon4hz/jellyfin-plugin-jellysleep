@@ -74,18 +74,6 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                     },
                     CancellationToken.None).ConfigureAwait(false);
 
-                // Show a message about the sleep timer being active
-                await _sessionManager.SendMessageCommand(
-                    session.Id,
-                    session.Id,
-                    new MediaBrowser.Model.Session.MessageCommand
-                    {
-                        Header = "Sleep Timer Active",
-                        Text = $"Sleep timer is set to activate after the current episode. Playback of '{eventArgs.Item?.Name ?? "this item"}' has been blocked.",
-                        TimeoutMs = 5000
-                    },
-                    CancellationToken.None).ConfigureAwait(false);
-
                 // Trigger the episode timer completion now since the episode has ended
                 // and the user tried to start something new
                 await _sleepTimerService.HandlePlaybackStopAsync(session.UserId, session.Id).ConfigureAwait(false);

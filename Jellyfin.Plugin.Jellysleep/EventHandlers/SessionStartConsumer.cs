@@ -69,19 +69,7 @@ public class SessionStartConsumer : IEventConsumer<SessionStartedEventArgs>
                     {
                         Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
                     },
-                    System.Threading.CancellationToken.None).ConfigureAwait(false);
-
-                // Show a message about the sleep timer being active
-                await _sessionManager.SendMessageCommand(
-                    session.Id,
-                    session.Id,
-                    new MediaBrowser.Model.Session.MessageCommand
-                    {
-                        Header = "Sleep Timer Active",
-                        Text = "Sleep timer is set to activate after the current episode. New playback has been blocked.",
-                        TimeoutMs = 5000
-                    },
-                    System.Threading.CancellationToken.None).ConfigureAwait(false);
+                    CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
