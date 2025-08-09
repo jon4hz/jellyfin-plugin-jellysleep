@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "a760bbb5-7b7b-4fda-951c-f3c39d689a8f",
+    "name": "Jellysleep",
+    "overview": "Sleep timer plugin that automatically stops playback after a specified time or episodes",
+    "description": "Jellysleep adds sleep timer functionality to Jellyfin. Set timers by duration (15min, 30min, 1h, 2h) or episodes.",
+    "owner": "jon4hz",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/jon4hz/jellyfin-plugin-jellysleep/main/assets/jellysleep.png",
+    "versions": []
+  }
+]
