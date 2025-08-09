@@ -241,7 +241,18 @@ jobs:
             echo "No changes to manifest.json"
           else
             echo "Committing updated manifest.json"
+
+            # Ensure we're on the main branch
+            echo "Current branch: $(git branch --show-current || echo 'detached HEAD')"
+            echo "Checking out main branch..."
+            git fetch origin main
+            git checkout main || git checkout -b main origin/main
+
+            # Add and commit changes
             git add manifest.json
             git commit -m "chore: update manifest.json for release v${{ needs.build.outputs.version }}"
+
+            # Push to main branch
+            echo "Pushing changes to main branch..."
             git push origin main
           fi
