@@ -34,6 +34,7 @@ This plugin works by injecting custom JavaScript into Jellyfin's web interface. 
 - ✅ **Jellyfin Android App** (uses embedded web UI)
 - ✅ **Jellyfin iOS App** (uses embedded web UI)
 - ✅ **Jellyfin Desktop Apps** (Flatpak, etc. - uses embedded web UI)
+- ⏳️ **Streamyfin** (work in progress)
 - ❌ **Android TV App** (uses native interface, cannot be modified)
 - ❌ **Other native apps** that don't use the web interface
 
