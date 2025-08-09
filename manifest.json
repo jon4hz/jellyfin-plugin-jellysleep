@@ -6,7 +6,7 @@
     "description": "Jellysleep adds sleep timer functionality to Jellyfin. Set timers by duration (15min, 30min, 1h, 2h) or episodes.",
     "owner": "jon4hz",
     "category": "General",
-    "imageUrl": "media.githubusercontent.com/media/jon4hz/jellyfin-plugin-jellysleep/main/assets/jellysleep.png",
+    "imageUrl": "https://media.githubusercontent.com/media/jon4hz/jellyfin-plugin-jellysleep/main/assets/jellysleep.png",
     "versions": [
       {
         "version": "0.1.1",
