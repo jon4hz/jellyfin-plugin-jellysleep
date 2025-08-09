@@ -24,7 +24,7 @@ Sleep timer plugin for Jellyfin that automatically stops playback after a specif
   - [🛠️ Development](#️-development)
     - [Building](#building)
     - [Packaging](#packaging)
-  - [� License](#-license)
+  - [📜 License](#-license)
 
 ## 📱 Supported Devices
 
