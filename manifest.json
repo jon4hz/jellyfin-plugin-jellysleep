@@ -9,6 +9,14 @@
     "imageUrl": "https://media.githubusercontent.com/media/jon4hz/jellyfin-plugin-jellysleep/main/assets/jellysleep.png",
     "versions": [
       {
+        "version": "0.2.1.0",
+        "changelog": "- See the full changelog at [GitHub](https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/tag/v0.2.1)\n",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/download/v0.2.1/jellyfin-plugin-jellysleep-0.2.1.zip",
+        "checksum": "dbb140468b74aa7a525045ca8377f90a",
+        "timestamp": "2025-08-10T22:36:44Z"
+      },
+      {
         "version": "0.2.0",
         "changelog": "- See the full changelog at [GitHub](https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/tag/v0.2.0)\n",
         "targetAbi": "10.10.0.0",
