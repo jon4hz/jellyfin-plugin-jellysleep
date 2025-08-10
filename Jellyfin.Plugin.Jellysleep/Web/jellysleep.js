@@ -50,6 +50,7 @@
           body: JSON.stringify({
             type: data.type,
             duration: data.duration,
+            episodeCount: data.episodeCount,
             endTime: data.endTime,
             label: data.label,
           }),
@@ -302,7 +303,9 @@
     }
 
     if (optionKey === 'episode') {
-      startEpisodeTimer();
+      startEpisodeTimer(1);
+    } else if (option.episodeCount) {
+      startEpisodeTimer(option.episodeCount, option.label);
     } else {
       startDurationTimer(option.duration, option.label, optionKey);
     }
@@ -345,8 +348,8 @@
   /**
    * Start episode-based sleep timer
    */
-  function startEpisodeTimer() {
-    console.log('[Jellysleep] Starting episode-based timer');
+  function startEpisodeTimer(episodeCount, label = 'After this episode') {
+    console.log(`[Jellysleep] Starting episode-based timer (count: ${episodeCount || 'current episode'})`);
 
     isActive = true;
     currentTimerType = 'episode';
@@ -354,12 +357,13 @@
     // Call plugin API
     callPluginAPI('startTimer', {
       type: 'episode',
-      label: 'After this episode',
+      episodeCount: episodeCount,
+      label: label,
     })
       .then(response => {
         console.log('[Jellysleep] Episode timer started successfully:', response);
         updateButtonAppearance();
-        showNotification('Sleep timer set for end of episode');
+        showNotification(`Sleep timer set for ${label.toLowerCase()}`);
       })
       .catch(error => {
         console.error('[Jellysleep] Failed to start episode timer:', error);

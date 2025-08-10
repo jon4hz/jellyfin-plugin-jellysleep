@@ -2,15 +2,15 @@ using System;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Jellysleep.Services;
 using MediaBrowser.Controller.Events;
-using MediaBrowser.Controller.Events.Session;
+using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Jellysleep.EventHandlers;
 
 /// <summary>
-/// Handles playback events for sleep timer functionality.
+/// Handles playback stop events for episode-based sleep timer functionality.
 /// </summary>
-public class PlaybackStopConsumer : IEventConsumer<SessionEndedEventArgs>
+public class PlaybackStopConsumer : IEventConsumer<PlaybackStopEventArgs>
 {
     private readonly ILogger<PlaybackStopConsumer> _logger;
     private readonly ISleepTimerService _sleepTimerService;
@@ -27,35 +27,51 @@ public class PlaybackStopConsumer : IEventConsumer<SessionEndedEventArgs>
     }
 
     /// <inheritdoc />
-    public async Task OnEvent(SessionEndedEventArgs eventArgs)
+    public async Task OnEvent(PlaybackStopEventArgs eventArgs)
     {
         try
         {
-            var session = eventArgs.Argument;
+            var session = eventArgs.Session;
 
             if (session?.UserId == null || session.UserId == Guid.Empty)
             {
                 return;
             }
 
-            _logger.LogDebug(
-                "Session ended for user {UserId} in session {SessionId}",
+            _logger.LogInformation(
+                "Playback stopped for user {UserId} in session {SessionId}, item: {ItemName}, PlayedToCompletion: {PlayedToCompletion}",
                 session.UserId,
-                session.Id);
+                session.Id,
+                eventArgs.Item?.Name ?? "Unknown",
+                eventArgs.PlayedToCompletion);
 
-            // Handle potential episode timer trigger
-            var handled = await _sleepTimerService.HandlePlaybackStopAsync(session.UserId, session.Id).ConfigureAwait(false);
-            if (handled)
+            if (eventArgs.PlayedToCompletion)
             {
+                // Only increment episode count - don't trigger timer completion here
+                // The PlaybackStartConsumer will handle stopping playback when target is reached
+                await _sleepTimerService.IncrementEpisodeCountAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+
                 _logger.LogInformation(
-                    "Episode sleep timer triggered for user {UserId} in session {SessionId}",
+                    "Episode completed for user {UserId} in session {SessionId}, episode count incremented",
                     session.UserId,
                     session.Id);
+            }
+            else
+            {
+                // Handle user interruption - this should cancel episode-count timers but not simple episode timers
+                var handled = await _sleepTimerService.HandleUserInterruptionAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+                if (handled)
+                {
+                    _logger.LogInformation(
+                        "Episode-count timer cancelled due to user interruption for user {UserId} in session {SessionId}",
+                        session.UserId,
+                        session.Id);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling session ended event");
+            _logger.LogError(ex, "Error handling playback stop event");
         }
     }
 }

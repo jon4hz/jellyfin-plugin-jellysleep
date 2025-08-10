@@ -33,6 +33,16 @@ public class ActiveSleepTimer
     public int? Duration { get; set; }
 
     /// <summary>
+    /// Gets or sets the target episode count (for episode-based timers).
+    /// </summary>
+    public int? EpisodeCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the current number of episodes played (for episode-based timers).
+    /// </summary>
+    public int EpisodesPlayed { get; set; }
+
+    /// <summary>
     /// Gets or sets the start time.
     /// </summary>
     public DateTime StartTime { get; set; }
@@ -75,9 +85,34 @@ public class ActiveSleepTimer
     {
         if (Type == "episode")
         {
-            return false; // Episode timers don't expire on their own
+            // For episode timers, check if we've reached the target episode count
+            return EpisodeCount.HasValue && EpisodesPlayed >= EpisodeCount.Value;
         }
 
         return EndTime.HasValue && DateTime.UtcNow >= EndTime.Value;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this is an episode-count based timer (not just "after current episode").
+    /// </summary>
+    /// <returns>True if this is an episode-count timer, false otherwise.</returns>
+    public bool IsEpisodeCountTimer()
+    {
+        return Type == "episode" && EpisodeCount.HasValue && EpisodeCount.Value > 0;
+    }
+
+    /// <summary>
+    /// Gets the remaining episodes for episode-count timers.
+    /// </summary>
+    /// <returns>The remaining episodes if applicable, null otherwise.</returns>
+    public int? GetRemainingEpisodes()
+    {
+        if (!IsEpisodeCountTimer())
+        {
+            return null;
+        }
+
+        var remaining = EpisodeCount!.Value - EpisodesPlayed;
+        return Math.Max(0, remaining);
     }
 }

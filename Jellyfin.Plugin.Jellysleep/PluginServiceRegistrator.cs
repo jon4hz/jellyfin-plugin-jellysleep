@@ -22,7 +22,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             (SleepTimerService)provider.GetRequiredService<ISleepTimerService>());
 
         // Register event handlers
-        serviceCollection.AddScoped<IEventConsumer<SessionEndedEventArgs>, PlaybackStopConsumer>();
+        serviceCollection.AddScoped<IEventConsumer<PlaybackStopEventArgs>, PlaybackStopConsumer>();
         serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartConsumer>();
         serviceCollection.AddScoped<IEventConsumer<PlaybackStartEventArgs>, PlaybackStartConsumer>();
     }
