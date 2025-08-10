@@ -90,8 +90,9 @@ jobs:
       - name: Generate Release Notes
         id: generate-notes
         run: |
-          # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Get the previous tag (second most recent)
+          CURRENT_TAG=$(git describe --tags --abbrev=0)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1 | grep -v "^${CURRENT_TAG}$" || echo "")
 
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found, generating notes from all commits"
