@@ -33,6 +33,12 @@ public class SleepTimerResponse
     public int? Duration { get; set; }
 
     /// <summary>
+    /// Gets or sets the episode count (for episode-based timers).
+    /// </summary>
+    [JsonPropertyName("episodeCount")]
+    public int? EpisodeCount { get; set; }
+
+    /// <summary>
     /// Gets or sets the end time.
     /// </summary>
     [JsonPropertyName("endTime")]

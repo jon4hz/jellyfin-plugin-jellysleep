@@ -43,6 +43,22 @@ public interface ISleepTimerService
     Task<bool> HandlePlaybackStopAsync(Guid userId, string? sessionId);
 
     /// <summary>
+    /// Handle user interruption (stopping playback early) - cancels episode-count timers.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="deviceId">The device ID.</param>
+    /// <returns>True if a timer was cancelled due to interruption, false otherwise.</returns>
+    Task<bool> HandleUserInterruptionAsync(Guid userId, string? deviceId);
+
+    /// <summary>
+    /// Increments the episode count for episode-based timers when an episode completes.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="deviceId">The device ID.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task IncrementEpisodeCountAsync(Guid userId, string? deviceId);
+
+    /// <summary>
     /// Clean up expired timers and inactive sessions.
     /// </summary>
     /// <returns>A task representing the async operation.</returns>

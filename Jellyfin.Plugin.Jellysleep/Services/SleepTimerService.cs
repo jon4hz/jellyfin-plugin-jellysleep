@@ -60,6 +60,11 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             throw new ArgumentException("Duration is required for duration-based timers", nameof(request));
         }
 
+        if (request.Type == "episode" && request.EpisodeCount.HasValue && request.EpisodeCount.Value <= 0)
+        {
+            throw new ArgumentException("Episode count must be greater than 0", nameof(request));
+        }
+
         // Cancel any existing timer for this user and device
         await CancelTimerAsync(userId, deviceId).ConfigureAwait(false);
 
@@ -83,6 +88,8 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             DeviceId = deviceId,
             Type = request.Type,
             Duration = request.Duration,
+            EpisodeCount = request.EpisodeCount,
+            EpisodesPlayed = 0,
             StartTime = startTime,
             EndTime = endTime,
             Label = request.Label,
@@ -95,11 +102,12 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
         _activeTimers.TryAdd(userDeviceKey, timer);
 
         _logger.LogInformation(
-            "Started sleep timer {TimerId} for user {UserId}: Type={Type}, Duration={Duration}, EndTime={EndTime}",
+            "Started sleep timer {TimerId} for user {UserId}: Type={Type}, Duration={Duration}, EpisodeCount={EpisodeCount}, EndTime={EndTime}",
             timerId,
             userId,
             request.Type,
             request.Duration,
+            request.EpisodeCount,
             endTime);
 
         return new SleepTimerResponse
@@ -108,6 +116,7 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             TimerId = timerId,
             Type = request.Type,
             Duration = request.Duration,
+            EpisodeCount = request.EpisodeCount,
             EndTime = endTime,
             Label = request.Label,
             Message = $"Sleep timer started: {request.Label ?? request.Type}"
@@ -153,8 +162,11 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
                 TimerId = timer.Id,
                 Type = timer.Type,
                 Duration = timer.Duration,
+                EpisodeCount = timer.EpisodeCount,
+                EpisodesPlayed = timer.Type == "episode" ? timer.EpisodesPlayed : null,
                 EndTime = timer.EndTime,
                 RemainingMinutes = timer.GetRemainingMinutes(),
+                RemainingEpisodes = timer.GetRemainingEpisodes(),
                 Label = timer.Label
             });
         }
@@ -176,19 +188,46 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             deviceId = session?.DeviceId;
         }
 
-        // Find episode timers for this user and device
-        var userTimers = _activeTimers.Where(kvp => kvp.Key.UserId == userId &&
-            kvp.Value.IsActive &&
-            kvp.Value.Type == "episode" &&
-            (string.IsNullOrEmpty(deviceId) || kvp.Key.DeviceId == deviceId || string.IsNullOrEmpty(kvp.Key.DeviceId)))
-            .ToList();
+        var userDeviceKey = new UserDeviceKey(userId, deviceId);
 
-        bool handled = false;
-        foreach (var timerKvp in userTimers)
+        // Find episode timers for this user and device
+        if (!_activeTimers.TryGetValue(userDeviceKey, out var timer) ||
+            !timer.IsActive ||
+            timer.Type != "episode")
         {
-            var timer = timerKvp.Value;
+            return false;
+        }
+
+        if (timer.IsEpisodeCountTimer())
+        {
+            // For multi-episode timers, only complete when target is reached
+            if (timer.EpisodesPlayed >= timer.EpisodeCount)
+            {
+                _logger.LogInformation(
+                    "Multi-episode timer completed for user {UserId} on device {DeviceId}, episodes: {EpisodesPlayed}/{EpisodeCount}, timer {TimerId}",
+                    userId,
+                    deviceId ?? "unknown",
+                    timer.EpisodesPlayed,
+                    timer.EpisodeCount,
+                    timer.Id);
+
+                // Stop all playback for this user/device
+                await StopPlaybackForUserAsync(timer.UserId, timer.DeviceId).ConfigureAwait(false);
+
+                // Remove the timer since it has been triggered
+                _activeTimers.TryRemove(userDeviceKey, out _);
+
+                return true;
+            }
+
+            // Timer is still active, target not reached yet
+            return false;
+        }
+        else
+        {
+            // This is a simple "after current episode" timer
             _logger.LogInformation(
-                "Episode finished for user {UserId} on device {DeviceId}, triggering episode-based sleep timer {TimerId}",
+                "Simple episode timer completed for user {UserId} on device {DeviceId}, timer {TimerId}",
                 userId,
                 deviceId ?? "unknown",
                 timer.Id);
@@ -197,12 +236,79 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             await StopPlaybackForUserAsync(timer.UserId, timer.DeviceId).ConfigureAwait(false);
 
             // Remove the timer since it has been triggered
-            _activeTimers.TryRemove(timerKvp.Key, out _);
+            _activeTimers.TryRemove(userDeviceKey, out _);
 
-            handled = true;
+            return true;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<bool> HandleUserInterruptionAsync(Guid userId, string? deviceId)
+    {
+        var userDeviceKey = new UserDeviceKey(userId, deviceId);
+
+        // Find episode timers for this user and device
+        if (!_activeTimers.TryGetValue(userDeviceKey, out var timer) ||
+            !timer.IsActive ||
+            timer.Type != "episode")
+        {
+            return Task.FromResult(false);
         }
 
-        return handled;
+        // Only cancel episode-count timers on user interruption
+        // Simple "after current episode" timers should not be cancelled
+        if (timer.IsEpisodeCountTimer())
+        {
+            _logger.LogInformation(
+                "User interrupted playback for episode-count timer {TimerId} (user {UserId}, device {DeviceId}). " +
+                "Progress was {EpisodesPlayed}/{EpisodeCount}. Cancelling timer.",
+                timer.Id,
+                userId,
+                deviceId ?? "unknown",
+                timer.EpisodesPlayed,
+                timer.EpisodeCount);
+
+            // Cancel the timer
+            _activeTimers.TryRemove(userDeviceKey, out _);
+            return Task.FromResult(true);
+        }
+
+        // Don't cancel simple episode timers on user interruption
+        _logger.LogDebug(
+            "User interrupted playback but timer {TimerId} is simple episode timer, keeping it active",
+            timer.Id);
+
+        return Task.FromResult(false);
+    }
+
+    /// <inheritdoc />
+    public Task IncrementEpisodeCountAsync(Guid userId, string? deviceId)
+    {
+        var userDeviceKey = new UserDeviceKey(userId, deviceId);
+
+        if (_activeTimers.TryGetValue(userDeviceKey, out var timer) &&
+            timer.IsActive &&
+            timer.Type == "episode")
+        {
+            timer.EpisodesPlayed++;
+
+            _logger.LogInformation(
+                "Incremented episode count for timer {TimerId} (user {UserId}, device {DeviceId}): {EpisodesPlayed}/{EpisodeCount}",
+                timer.Id,
+                userId,
+                deviceId ?? "unknown",
+                timer.EpisodesPlayed,
+                timer.EpisodeCount ?? 1);
+        }
+        else
+        {
+            _logger.LogDebug(
+                "No active episode timer found to increment for user {UserId}, device {DeviceId}",
+                userId,
+                deviceId ?? "unknown");
+        }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

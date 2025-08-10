@@ -33,6 +33,18 @@ public class SleepTimerStatusResponse
     public int? Duration { get; set; }
 
     /// <summary>
+    /// Gets or sets the target episode count (for episode-based timers).
+    /// </summary>
+    [JsonPropertyName("episodeCount")]
+    public int? EpisodeCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of episodes played so far (for episode-based timers).
+    /// </summary>
+    [JsonPropertyName("episodesPlayed")]
+    public int? EpisodesPlayed { get; set; }
+
+    /// <summary>
     /// Gets or sets the end time.
     /// </summary>
     [JsonPropertyName("endTime")]
@@ -43,6 +55,12 @@ public class SleepTimerStatusResponse
     /// </summary>
     [JsonPropertyName("remainingMinutes")]
     public int? RemainingMinutes { get; set; }
+
+    /// <summary>
+    /// Gets or sets the remaining episodes (for episode-count timers).
+    /// </summary>
+    [JsonPropertyName("remainingEpisodes")]
+    public int? RemainingEpisodes { get; set; }
 
     /// <summary>
     /// Gets or sets the timer label.

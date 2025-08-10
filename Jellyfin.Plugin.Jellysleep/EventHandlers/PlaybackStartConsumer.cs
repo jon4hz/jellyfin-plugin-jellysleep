@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Plugin.Jellysleep.Services;
 using MediaBrowser.Controller.Events;
@@ -46,37 +47,51 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                 return;
             }
 
-            _logger.LogDebug(
+            _logger.LogInformation(
                 "Playback started for user {UserId} in session {SessionId}, item: {ItemName}",
                 session.UserId,
                 session.Id,
                 eventArgs.Item?.Name ?? "Unknown");
 
-            // Check if this user has an active episode timer
+            // Check if this user has an active episode timer that should block new playback
             var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
 
             if (timerStatus.IsActive && timerStatus.Type == "episode")
             {
-                _logger.LogInformation(
-                    "Blocking new playback in session {SessionId} for user {UserId} due to active episode timer {TimerId}. Item: {ItemName}",
-                    session.Id,
-                    session.UserId,
-                    timerStatus.TimerId,
-                    eventArgs.Item?.Name ?? "Unknown");
+                // Check if we've reached the target episode count for multi-episode timers
+                if (timerStatus.EpisodeCount >= 1 && timerStatus.EpisodesPlayed >= timerStatus.EpisodeCount)
+                {
+                    _logger.LogInformation(
+                        "Stopping playback in session {SessionId} for user {UserId} - episode timer target reached. Episodes: {EpisodesPlayed}/{EpisodeCount}, Item: {ItemName}",
+                        session.Id,
+                        session.UserId,
+                        timerStatus.EpisodesPlayed,
+                        timerStatus.EpisodeCount,
+                        eventArgs.Item?.Name ?? "Unknown");
 
-                // Stop this playback immediately
-                await _sessionManager.SendPlaystateCommand(
-                    session.Id,
-                    session.Id,
-                    new MediaBrowser.Model.Session.PlaystateRequest
-                    {
-                        Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
-                    },
-                    CancellationToken.None).ConfigureAwait(false);
+                    // Stop this playback immediately
+                    await _sessionManager.SendPlaystateCommand(
+                        session.Id,
+                        session.Id,
+                        new MediaBrowser.Model.Session.PlaystateRequest
+                        {
+                            Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
 
-                // Trigger the episode timer completion now since the episode has ended
-                // and the user tried to start something new
-                await _sleepTimerService.HandlePlaybackStopAsync(session.UserId, session.Id).ConfigureAwait(false);
+                    // Complete the timer
+                    await _sleepTimerService.HandlePlaybackStopAsync(session.UserId, session.Id).ConfigureAwait(false);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Allowing new playback in session {SessionId} for user {UserId} - episode timer still has episodes remaining. Episodes: {EpisodesPlayed}/{EpisodeCount}, Item: {ItemName}",
+                        session.Id,
+                        session.UserId,
+                        timerStatus.EpisodesPlayed,
+                        timerStatus.EpisodeCount,
+                        eventArgs.Item?.Name ?? "Unknown");
+                }
             }
         }
         catch (Exception ex)
