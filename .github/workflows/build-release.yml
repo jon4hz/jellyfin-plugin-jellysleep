@@ -200,9 +200,12 @@ jobs:
           # Get current timestamp in ISO format
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+          # Create assembly version format (matching update-version.sh)
+          ASSEMBLY_VERSION="${{ needs.build.outputs.version }}.0"
+
           # Create new version entry
           NEW_VERSION='{
-              "version": "'${{ needs.build.outputs.version }}'",
+              "version": "'${ASSEMBLY_VERSION}'",
               "changelog": "- See the full changelog at [GitHub]('${REPO_URL}'/releases/tag/'${VERSION}')\n",
               "targetAbi": "10.10.0.0",
               "sourceUrl": "'${DOWNLOAD_URL}'",
