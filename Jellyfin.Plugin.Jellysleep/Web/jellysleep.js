@@ -111,11 +111,9 @@
    * Create the sleep timer button
    */
   function createSleepButton() {
-    console.log('[Jellysleep DEBUG] Creating sleep button...');
-
-    if (sleepButton) {
-      console.log('[Jellysleep DEBUG] Sleep button already exists, returning existing button');
-      return sleepButton;
+    // If button already exists, exit
+    if (document.querySelector('.btnJellysleep')) {
+        return;
     }
 
     // Create the sleep button to match Jellyfin's button structure
@@ -125,14 +123,11 @@
     sleepButton.title = 'Sleep Timer';
     sleepButton.setAttribute('aria-label', 'Sleep Timer');
     sleepButton.innerHTML = `
-            <span class="xlargePaperIconButton material-icons bedtime" aria-hidden="true"></span>
+            <span class="xlargePaperIconButton material-icons" aria-hidden="true">bedtime_off</span>
         `;
-
-    console.log('[Jellysleep DEBUG] Sleep button element created');
 
     // Button click handler - show action sheet instead of custom menu
     sleepButton.addEventListener('click', e => {
-      console.log('[Jellysleep DEBUG] Sleep button clicked');
       e.stopPropagation();
       showSleepActionSheet();
     });
@@ -144,8 +139,6 @@
    * Show the sleep action sheet using Jellyfin's native dialog system
    */
   function showSleepActionSheet() {
-    console.log('[Jellysleep DEBUG] showSleepActionSheet called');
-
     // Create backdrop
     const backdrop = document.createElement('div');
     backdrop.className = 'dialogBackdrop dialogBackdropOpened';
@@ -204,11 +197,9 @@
 
       menuItem.addEventListener('click', () => {
         if (isLoadingStatus) {
-          console.log('[Jellysleep DEBUG] Ignoring click while loading status');
           return;
         }
 
-        console.log(`[Jellysleep DEBUG] Action sheet item clicked: ${key}`);
         handleSleepOptionClick(key);
         closeSleepActionSheet();
       });
@@ -266,8 +257,6 @@
    * Close the sleep action sheet
    */
   function closeSleepActionSheet() {
-    console.log('[Jellysleep DEBUG] closeSleepActionSheet called');
-
     if (sleepMenu) {
       // Clean up event listeners
       if (sleepMenu.outsideClickHandler) {
@@ -297,7 +286,6 @@
 
     // If clicking on the same option that's currently active, disable the timer
     if (isActive && currentTimerType === optionKey) {
-      console.log('[Jellysleep DEBUG] Clicking on active timer option, disabling timer');
       cancelSleepTimer();
       return;
     }
@@ -315,8 +303,6 @@
    * Start a duration-based sleep timer
    */
   function startDurationTimer(minutes, label, timerType) {
-    console.log(`[Jellysleep] Starting ${minutes} minute timer`);
-
     const endTime = new Date(Date.now() + minutes * 60 * 1000);
     sleepTimerEndTime = endTime;
     isActive = true;
@@ -330,12 +316,10 @@
       label: label,
     })
       .then(response => {
-        console.log('[Jellysleep] Timer started successfully:', response);
         updateButtonAppearance();
         showNotification(`Sleep timer set for ${label}`);
       })
       .catch(error => {
-        console.error('[Jellysleep] Failed to start timer:', error);
         // Reset state on error
         isActive = false;
         currentTimerType = null;
@@ -349,8 +333,6 @@
    * Start episode-based sleep timer
    */
   function startEpisodeTimer(episodeCount, label = 'After this episode') {
-    console.log(`[Jellysleep] Starting episode-based timer (count: ${episodeCount || 'current episode'})`);
-
     isActive = true;
     currentTimerType = 'episode';
 
@@ -361,12 +343,10 @@
       label: label,
     })
       .then(response => {
-        console.log('[Jellysleep] Episode timer started successfully:', response);
         updateButtonAppearance();
         showNotification(`Sleep timer set for ${label.toLowerCase()}`);
       })
       .catch(error => {
-        console.error('[Jellysleep] Failed to start episode timer:', error);
         // Reset state on error
         isActive = false;
         currentTimerType = null;
@@ -379,8 +359,6 @@
    * Cancel the active sleep timer
    */
   function cancelSleepTimer() {
-    console.log('[Jellysleep] Cancelling sleep timer');
-
     if (sleepTimer) {
       clearTimeout(sleepTimer);
       sleepTimer = null;
@@ -393,12 +371,10 @@
     // Call plugin API
     callPluginAPI('cancelTimer')
       .then(response => {
-        console.log('[Jellysleep] Timer cancelled successfully:', response);
         updateButtonAppearance();
         showNotification('Sleep timer cancelled');
       })
       .catch(error => {
-        console.error('[Jellysleep] Failed to cancel timer:', error);
         // Still update UI even if API call fails
         updateButtonAppearance();
         showNotification('Sleep timer cancelled (locally)');
@@ -412,126 +388,68 @@
     if (!sleepButton) return;
 
     const icon = sleepButton.querySelector('.material-icons');
+    if (!icon) return;
 
     if (isActive) {
-      sleepButton.style.backgroundColor = 'rgba(0, 164, 220, 0.2)';
-      icon.style.color = '#00a4dc';
-      sleepButton.title = 'Sleep Timer Active - Click to manage';
+      icon.textContent = 'bedtime';
+      sleepButton.title = 'Sleep Timer - Active';
     } else {
-      sleepButton.style.backgroundColor = 'transparent';
-      icon.style.color = '#fff';
+      icon.textContent = 'bedtime_off';
       sleepButton.title = 'Sleep Timer';
     }
   }
 
   /**
-   * Show a notification message
+   * Show a notification message using Jellyfin's notification system
+   * Fallback to console log if notification system is not available
    */
-  function showNotification(message) {
-    // TODO: Use Jellyfin's notification system when available
-    console.log(`[Jellysleep] Notification: ${message}`);
+    const showNotification = (message, type = 'info') => {
+        try {
+            if (window.Dashboard?.alert) {
+                 window.Dashboard.alert(message);
+            } else if (window.Emby?.Notifications) {
+                window.Emby.Notifications.show({ title: message, type: type, timeout: 3000 });
+            } else {
+                console.log(`Notification (${type}): ${message}`);
+            }
+        } catch (e) {
+            console.error("Failed to show notification", e);
+            console.log(`Notification (${type}): ${message}`);
+        }
+    };
 
-    // Simple toast notification
-    const toast = document.createElement('div');
-    toast.textContent = message;
-    toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #333;
-            color: #fff;
-            padding: 1rem;
-            border-radius: 4px;
-            z-index: 10000;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        `;
+  const isVideoPage = () => location.hash.startsWith('#/video');
 
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
+  // if current page is a video page, add the sleep button to the player
+  const updatePlayerUI = () => {
+      if (isVideoPage()) {
+          addSleepButtonToPlayer();
       }
-    }, 3000);
-  }
+  };
+
 
   /**
    * Add the sleep button to the media player controls
    */
   function addSleepButtonToPlayer() {
-    console.log('[Jellysleep DEBUG] Starting addSleepButtonToPlayer function');
-
-    // Look for the buttons container in the osd controls
-    const selectors = [
-      '.osdControls .buttons', // Primary target: buttons container in osd controls
-      '.videoOsdBottom .osdControls .buttons', // More specific path
-      '.osdControls', // Fallback to osd controls container
-      '.videoOsdBottom', // Fallback to video osd bottom
-      '.headerButtons', // Header buttons fallback
-    ];
-
-    let controlsContainer = null;
-
-    console.log('[Jellysleep DEBUG] Searching for control containers...');
-    for (let i = 0; i < selectors.length; i++) {
-      const selector = selectors[i];
-      console.log(`[Jellysleep DEBUG] Trying selector ${i + 1}/${selectors.length}: "${selector}"`);
-      controlsContainer = document.querySelector(selector);
-      if (controlsContainer) {
-        console.log(`[Jellysleep DEBUG] Found controls container with selector: "${selector}"`);
-        console.log('[Jellysleep DEBUG] Container element:', controlsContainer);
-        console.log('[Jellysleep DEBUG] Container children count:', controlsContainer.children.length);
-        break;
-      } else {
-        console.log(`[Jellysleep DEBUG] Selector "${selector}" did not match any elements`);
-      }
+    // Check if the button already exists to avoid duplicates
+    if (document.querySelector('.btnJellysleep')) {
+        return;
     }
-
+    const controlsContainer = document.querySelector('.videoOsdBottom .buttons.focuscontainer-x');
     if (!controlsContainer) {
-      console.log('[Jellysleep DEBUG] No player controls found, checking what elements are available...');
-
-      // Debug: Check what's actually in the DOM
-      const videoOsdBottom = document.querySelector('.videoOsdBottom');
-      const osdControls = document.querySelector('.osdControls');
-      const buttonsContainer = document.querySelector('.buttons');
-
-      console.log('[Jellysleep DEBUG] .videoOsdBottom found:', !!videoOsdBottom);
-      console.log('[Jellysleep DEBUG] .osdControls found:', !!osdControls);
-      console.log('[Jellysleep DEBUG] .buttons found:', !!buttonsContainer);
-
-      if (buttonsContainer) {
-        console.log(
-          '[Jellysleep DEBUG] .buttons container content preview:',
-          buttonsContainer.innerHTML.substring(0, 200) + '...'
-        );
-      }
-
-      console.log('[Jellysleep DEBUG] Retrying in 1 second...');
-      setTimeout(addSleepButtonToPlayer, 1000);
-      return;
+        return;
     }
 
-    // Check if button already exists
-    if (controlsContainer.querySelector('.btnJellysleep')) {
-      console.log('[Jellysleep DEBUG] Sleep button already exists, skipping injection');
-      return;
-    }
-
-    console.log('[Jellysleep DEBUG] Creating sleep button...');
     const sleepButtonElement = createSleepButton();
 
     // Try to insert the button before the user rating button
     const userRatingBtn = controlsContainer.querySelector('.btnUserRating');
     if (userRatingBtn) {
-      console.log('[Jellysleep DEBUG] Inserting sleep button before user rating button');
       userRatingBtn.insertAdjacentElement('beforebegin', sleepButtonElement);
     } else {
-      console.log('[Jellysleep DEBUG] User rating button not found, appending to container');
       controlsContainer.appendChild(sleepButtonElement);
     }
-
-    console.log('[Jellysleep DEBUG] Sleep button successfully added to player controls');
-    console.log('[Jellysleep DEBUG] Button element:', sleepButtonElement);
 
     // Load initial timer status asynchronously after waiting for ApiClient
     waitForApiClient()
@@ -543,90 +461,25 @@
       });
   }
 
+  // Monitor for changes in navigation and call updatePlayerUI
+  const setupObserver = () => {
+    const observer = new MutationObserver(() => {
+        updatePlayerUI();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true, attributes: false });
+  };
+
+
   /**
    * Initialize the plugin
    */
   function init() {
-    console.log('[Jellysleep DEBUG] Initializing sleep timer plugin');
-    console.log('[Jellysleep DEBUG] Document ready state:', document.readyState);
-    console.log('[Jellysleep DEBUG] Current URL:', window.location.href);
-
     // Wait for ApiClient to be available
     waitForApiClient()
       .then(() => {
-        console.log('[Jellysleep] ApiClient is ready, proceeding with initialization');
-
-        // Wait for page to load
-        if (document.readyState === 'loading') {
-          console.log('[Jellysleep DEBUG] Document still loading, waiting for DOMContentLoaded');
-          document.addEventListener('DOMContentLoaded', () => {
-            console.log('[Jellysleep DEBUG] DOMContentLoaded fired, trying to add button');
-            addSleepButtonToPlayer();
-          });
-        } else {
-          console.log('[Jellysleep DEBUG] Document ready, immediately trying to add button');
-          addSleepButtonToPlayer();
-        }
-
-        // Also try to add button when navigating (SPA behavior)
-        const observer = new MutationObserver(mutations => {
-          let shouldCheckForButton = false;
-
-          mutations.forEach(mutation => {
-            if (mutation.type === 'childList') {
-              // Check if any added nodes contain video controls
-              mutation.addedNodes.forEach(node => {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                  if (
-                    node.classList &&
-                    (node.classList.contains('videoOsdBottom') ||
-                      node.classList.contains('osdControls') ||
-                      node.classList.contains('buttons') ||
-                      (node.querySelector &&
-                        (node.querySelector('.videoOsdBottom') ||
-                          node.querySelector('.osdControls') ||
-                          node.querySelector('.buttons'))))
-                  ) {
-                    console.log('[Jellysleep DEBUG] Video controls detected in DOM mutation');
-                    shouldCheckForButton = true;
-                  }
-                }
-              });
-            }
-          });
-
-          if (shouldCheckForButton) {
-            console.log('[Jellysleep DEBUG] Scheduling button injection due to DOM changes');
-            setTimeout(addSleepButtonToPlayer, 500);
-          }
-        });
-
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true,
-        });
-
-        console.log('[Jellysleep DEBUG] DOM observer started');
-
-        // Also try periodically in case we miss the initial load
-        let retryCount = 0;
-        const retryInterval = setInterval(() => {
-          retryCount++;
-          console.log(`[Jellysleep DEBUG] Periodic retry attempt ${retryCount}/10`);
-
-          if (document.querySelector('.btnJellysleep')) {
-            console.log('[Jellysleep DEBUG] Button found, stopping periodic retries');
-            clearInterval(retryInterval);
-            return;
-          }
-
-          addSleepButtonToPlayer();
-
-          if (retryCount >= 10) {
-            console.log('[Jellysleep DEBUG] Max retry attempts reached, stopping periodic retries');
-            clearInterval(retryInterval);
-          }
-        }, 2000);
+        setupObserver();
+        updatePlayerUI();
       })
       .catch(error => {
         console.error('[Jellysleep] ApiClient not available, initialization aborted:', error);
@@ -643,19 +496,16 @@
 
       const checkApiClient = () => {
         if (window.ApiClient && window.ApiClient.accessToken && window.ApiClient.accessToken()) {
-          console.log('[Jellysleep] ApiClient is ready with access token');
           resolve();
           return;
         }
 
         retryCount++;
         if (retryCount >= maxRetries) {
-          console.warn('[Jellysleep] ApiClient not available after waiting, proceeding anyway');
           reject(new Error('ApiClient not available'));
           return;
         }
 
-        console.log(`[Jellysleep] Waiting for ApiClient... (${retryCount}/${maxRetries})`);
         setTimeout(checkApiClient, 1000);
       };
 
@@ -667,10 +517,7 @@
    * Load current timer status from the API
    */
   async function loadTimerStatus() {
-    console.log('[Jellysleep] Loading current timer status from API...');
-
     if (isLoadingStatus) {
-      console.log('[Jellysleep] Already loading status, skipping...');
       return;
     }
 
@@ -681,7 +528,6 @@
       await waitForApiClient();
 
       const response = await callPluginAPI('status');
-      console.log('[Jellysleep] Timer status response:', response);
 
       if (response && response.isActive) {
         isActive = true;
@@ -692,9 +538,7 @@
         }
 
         updateButtonAppearance();
-        console.log('[Jellysleep] Timer status loaded successfully');
       } else {
-        console.log('[Jellysleep] No active timer found');
         isActive = false;
         currentTimerType = null;
         sleepTimerEndTime = null;
