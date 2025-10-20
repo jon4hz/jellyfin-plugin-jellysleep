@@ -113,7 +113,7 @@
   function createSleepButton() {
     // If button already exists, exit
     if (document.querySelector('.btnJellysleep')) {
-        return;
+      return;
     }
 
     // Create the sleep button to match Jellyfin's button structure
@@ -317,14 +317,13 @@
     })
       .then(response => {
         updateButtonAppearance();
-        showNotification(`Sleep timer set for ${label}`);
       })
       .catch(error => {
         // Reset state on error
         isActive = false;
         currentTimerType = null;
         sleepTimerEndTime = null;
-        showNotification('Failed to start sleep timer');
+        console.error('[Jellysleep] Failed to start duration timer:', error);
         return;
       });
   }
@@ -344,13 +343,12 @@
     })
       .then(response => {
         updateButtonAppearance();
-        showNotification(`Sleep timer set for ${label.toLowerCase()}`);
       })
       .catch(error => {
         // Reset state on error
         isActive = false;
         currentTimerType = null;
-        showNotification('Failed to start sleep timer');
+        console.error('[Jellysleep] Failed to start episode timer:', error);
         return;
       });
   }
@@ -372,12 +370,11 @@
     callPluginAPI('cancelTimer')
       .then(response => {
         updateButtonAppearance();
-        showNotification('Sleep timer cancelled');
       })
       .catch(error => {
         // Still update UI even if API call fails
         updateButtonAppearance();
-        showNotification('Sleep timer cancelled (locally)');
+        console.error('[Jellysleep] Failed to cancel sleep timer:', error);
       });
   }
 
@@ -399,34 +396,14 @@
     }
   }
 
-  /**
-   * Show a notification message using Jellyfin's notification system
-   * Fallback to console log if notification system is not available
-   */
-    const showNotification = (message, type = 'info') => {
-        try {
-            if (window.Dashboard?.alert) {
-                 window.Dashboard.alert(message);
-            } else if (window.Emby?.Notifications) {
-                window.Emby.Notifications.show({ title: message, type: type, timeout: 3000 });
-            } else {
-                console.log(`Notification (${type}): ${message}`);
-            }
-        } catch (e) {
-            console.error("Failed to show notification", e);
-            console.log(`Notification (${type}): ${message}`);
-        }
-    };
-
   const isVideoPage = () => location.hash.startsWith('#/video');
 
   // if current page is a video page, add the sleep button to the player
   const updatePlayerUI = () => {
-      if (isVideoPage()) {
-          addSleepButtonToPlayer();
-      }
+    if (isVideoPage()) {
+      addSleepButtonToPlayer();
+    }
   };
-
 
   /**
    * Add the sleep button to the media player controls
@@ -434,11 +411,11 @@
   function addSleepButtonToPlayer() {
     // Check if the button already exists to avoid duplicates
     if (document.querySelector('.btnJellysleep')) {
-        return;
+      return;
     }
     const controlsContainer = document.querySelector('.videoOsdBottom .buttons.focuscontainer-x');
     if (!controlsContainer) {
-        return;
+      return;
     }
 
     const sleepButtonElement = createSleepButton();
@@ -464,12 +441,11 @@
   // Monitor for changes in navigation and call updatePlayerUI
   const setupObserver = () => {
     const observer = new MutationObserver(() => {
-        updatePlayerUI();
+      updatePlayerUI();
     });
 
     observer.observe(document.body, { childList: true, subtree: true, attributes: false });
   };
-
 
   /**
    * Initialize the plugin
