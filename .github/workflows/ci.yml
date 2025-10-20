@@ -27,7 +27,7 @@ jobs:
 
       - name: Test Build Output
         run: |
-          if [ ! -f "Jellyfin.Plugin.Jellysleep/bin/Release/net8.0/Jellyfin.Plugin.Jellysleep.dll" ]; then
+          if [ ! -f "Jellyfin.Plugin.Jellysleep/bin/Release/net9.0/Jellyfin.Plugin.Jellysleep.dll" ]; then
             echo "Build failed - DLL not found"
             exit 1
           fi
