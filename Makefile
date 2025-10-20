@@ -40,7 +40,7 @@ restore:
 
 test: build
 	@echo "Testing build output..."
-	@if [ ! -f "Jellyfin.Plugin.Jellysleep/bin/Release/net8.0/Jellyfin.Plugin.Jellysleep.dll" ]; then \
+	@if [ ! -f "Jellyfin.Plugin.Jellysleep/bin/Release/net9.0/Jellyfin.Plugin.Jellysleep.dll" ]; then \
 		echo "Build test failed - DLL not found"; \
 		exit 1; \
 	fi
@@ -73,10 +73,10 @@ install: package
 dev-install: debug
 	@echo "Installing debug build to local Jellyfin..."
 	sudo mkdir -p /var/lib/jellyfin/plugins/Jellysleep
-	sudo cp Jellyfin.Plugin.Jellysleep/bin/Debug/net8.0/Jellyfin.Plugin.Jellysleep.dll /var/lib/jellyfin/plugins/Jellysleep/
+	sudo cp Jellyfin.Plugin.Jellysleep/bin/Debug/net9.0/Jellyfin.Plugin.Jellysleep.dll /var/lib/jellyfin/plugins/Jellysleep/
 	# Copy Humanizer dependency for debug builds
-	@if [ -f "Jellyfin.Plugin.Jellysleep/bin/Debug/net8.0/Humanizer.dll" ]; then \
-		sudo cp Jellyfin.Plugin.Jellysleep/bin/Debug/net8.0/Humanizer.dll /var/lib/jellyfin/plugins/Jellysleep/; \
+	@if [ -f "Jellyfin.Plugin.Jellysleep/bin/Debug/net9.0/Humanizer.dll" ]; then \
+		sudo cp Jellyfin.Plugin.Jellysleep/bin/Debug/net9.0/Humanizer.dll /var/lib/jellyfin/plugins/Jellysleep/; \
 	fi
 	@echo "Debug plugin installed. Restart Jellyfin to load the updated plugin."
 
