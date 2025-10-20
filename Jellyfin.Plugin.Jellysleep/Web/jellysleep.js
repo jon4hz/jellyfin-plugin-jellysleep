@@ -402,6 +402,8 @@
   const updatePlayerUI = () => {
     if (isVideoPage()) {
       addSleepButtonToPlayer();
+    } else {
+      addSleepButtonToNowPlayingBar();
     }
   };
 
@@ -426,6 +428,54 @@
       userRatingBtn.insertAdjacentElement('beforebegin', sleepButtonElement);
     } else {
       controlsContainer.appendChild(sleepButtonElement);
+    }
+
+    // Load initial timer status asynchronously after waiting for ApiClient
+    waitForApiClient()
+      .then(() => {
+        loadTimerStatus();
+      })
+      .catch(error => {
+        console.warn('[Jellysleep] Failed to wait for ApiClient, timer status will not be loaded:', error);
+      });
+  }
+
+  /**
+   * Add the sleep button to the now playing bar
+   */
+  function addSleepButtonToNowPlayingBar() {
+    // Check if the button already exists to avoid duplicates
+    if (document.querySelector('.btnJellysleep')) {
+      return;
+    }
+
+    // Check if nowPlayingBar exists
+    const nowPlayingBar = document.querySelector('.nowPlayingBar');
+    if (!nowPlayingBar) {
+      return;
+    }
+
+    // Find the nowPlayingBarRight container
+    const nowPlayingBarRight = nowPlayingBar.querySelector('.nowPlayingBarRight');
+    if (!nowPlayingBarRight) {
+      return;
+    }
+
+    const sleepButtonElement = createSleepButton();
+
+    // Try to insert the button before the nowPlayingBarUserDataButtons
+    const userDataButtons = nowPlayingBarRight.querySelector('.nowPlayingBarUserDataButtons');
+    if (userDataButtons) {
+      userDataButtons.insertAdjacentElement('beforebegin', sleepButtonElement);
+    } else {
+      // If no user data buttons, try to insert before the context menu button
+      const contextMenuBtn = nowPlayingBarRight.querySelector('.btnToggleContextMenu');
+      if (contextMenuBtn) {
+        contextMenuBtn.insertAdjacentElement('beforebegin', sleepButtonElement);
+      } else {
+        // If no context menu button either, just append to the end
+        nowPlayingBarRight.appendChild(sleepButtonElement);
+      }
     }
 
     // Load initial timer status asynchronously after waiting for ApiClient
