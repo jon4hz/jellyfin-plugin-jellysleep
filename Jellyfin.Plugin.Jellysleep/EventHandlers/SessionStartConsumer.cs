@@ -45,15 +45,20 @@ public class SessionStartConsumer : IEventConsumer<SessionStartedEventArgs>
                 return;
             }
 
+            // check if there is an active sleep timer for this user and device
+            var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+            if (timerStatus == null || !timerStatus.IsActive)
+            {
+                return;
+            }
+
             _logger.LogDebug(
                 "Session started for user {UserId} in session {SessionId}",
                 session.UserId,
                 session.Id);
 
             // Check if this user has an active episode timer
-            var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
-
-            if (timerStatus.IsActive && timerStatus.Type == "episode")
+            if (timerStatus.Type == "episode")
             {
                 _logger.LogInformation(
                     "Blocking new session {SessionId} for user {UserId} due to active episode timer {TimerId}",

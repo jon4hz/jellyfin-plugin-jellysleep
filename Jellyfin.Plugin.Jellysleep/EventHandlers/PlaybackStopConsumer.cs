@@ -38,6 +38,13 @@ public class PlaybackStopConsumer : IEventConsumer<PlaybackStopEventArgs>
                 return;
             }
 
+            // check if there is an active sleep timer for this user and device
+            var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+            if (timerStatus == null || !timerStatus.IsActive)
+            {
+                return;
+            }
+
             _logger.LogInformation(
                 "Playback stopped for user {UserId} in session {SessionId}, item: {ItemName}, PlayedToCompletion: {PlayedToCompletion}",
                 session.UserId,

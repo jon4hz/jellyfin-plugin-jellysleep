@@ -47,16 +47,20 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                 return;
             }
 
+            // check if there is an active sleep timer for this user and device
+            var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+            if (timerStatus == null || !timerStatus.IsActive)
+            {
+                return;
+            }
+
             _logger.LogInformation(
                 "Playback started for user {UserId} in session {SessionId}, item: {ItemName}",
                 session.UserId,
                 session.Id,
                 eventArgs.Item?.Name ?? "Unknown");
 
-            // Check if this user has an active episode timer that should block new playback
-            var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
-
-            if (timerStatus.IsActive && timerStatus.Type == "episode")
+            if (timerStatus.Type == "episode")
             {
                 // Check if we've reached the target episode count for multi-episode timers
                 if (timerStatus.EpisodeCount >= 1 && timerStatus.EpisodesPlayed >= timerStatus.EpisodeCount)
