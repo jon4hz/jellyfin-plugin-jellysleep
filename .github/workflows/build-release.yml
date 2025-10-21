@@ -207,7 +207,7 @@ jobs:
           NEW_VERSION='{
               "version": "'${ASSEMBLY_VERSION}'",
               "changelog": "- See the full changelog at [GitHub]('${REPO_URL}'/releases/tag/'${VERSION}')\n",
-              "targetAbi": "10.10.0.0",
+              "targetAbi": "10.11.0.0",
               "sourceUrl": "'${DOWNLOAD_URL}'",
               "checksum": "'${CHECKSUM}'",
               "timestamp": "'${TIMESTAMP}'"
