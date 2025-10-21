@@ -412,30 +412,21 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
 
             foreach (var session in sessions)
             {
-                if (session.NowPlayingItem != null)
-                {
-                    _logger.LogInformation(
-                        "Stopping playback for user {UserId} in session {SessionId} on device {DeviceId}",
-                        userId,
-                        session.Id,
-                        session.DeviceId ?? "unknown");
+                _logger.LogInformation(
+                    "Stopping playback for user {UserId} in session {SessionId} on device {DeviceId}",
+                    userId,
+                    session.Id,
+                    session.DeviceId ?? "unknown");
 
-                    await _sessionManager.SendPlaystateCommand(
-                        session.Id,
-                        session.Id,
-                        new MediaBrowser.Model.Session.PlaystateRequest
-                        {
-                            Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
-                        },
-                        CancellationToken.None).ConfigureAwait(false);
-                }
-                else
-                {
-                    _logger.LogDebug(
-                        "Session {SessionId} for user {UserId} has no active playback to stop",
-                        session.Id,
-                        userId);
-                }
+                await _sessionManager.SendPlaystateCommand(
+                    session.Id,
+                    session.Id,
+                    new MediaBrowser.Model.Session.PlaystateRequest
+                    {
+                        Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+
             }
         }
         catch (Exception ex)
