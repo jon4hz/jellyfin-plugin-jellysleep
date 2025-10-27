@@ -56,14 +56,14 @@ jobs:
           ./build.sh --configuration Release --package
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plugin-package
           path: bin/${{ steps.get-version.outputs.package-name }}
           retention-days: 30
 
       - name: Upload Plugin Files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plugin-files
           path: bin/plugin/
