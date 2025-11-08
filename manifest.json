@@ -19,7 +19,7 @@
       {
         "version": "0.5.0.0",
         "changelog": "- See the full changelog at [GitHub](https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/tag/v0.5.0)\n",
-        "targetAbi": "10.10.0.0",
+        "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/download/v0.5.0/jellyfin-plugin-jellysleep-0.5.0.zip",
         "checksum": "be831d3afc2726b34ca5f3fbf1105093",
         "timestamp": "2025-10-20T21:40:38Z"
@@ -27,7 +27,7 @@
       {
         "version": "0.4.1.0",
         "changelog": "- See the full changelog at [GitHub](https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/tag/v0.4.1)\n",
-        "targetAbi": "10.10.0.0",
+        "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/download/v0.4.1/jellyfin-plugin-jellysleep-0.4.1.zip",
         "checksum": "3b0b5c5a5061cf97ee1d45646dc1e3b0",
         "timestamp": "2025-10-20T21:17:36Z"
@@ -35,7 +35,7 @@
       {
         "version": "0.4.0.0",
         "changelog": "- See the full changelog at [GitHub](https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/tag/v0.4.0)\n",
-        "targetAbi": "10.10.0.0",
+        "targetAbi": "10.11.0.0",
         "sourceUrl": "https://github.com/jon4hz/jellyfin-plugin-jellysleep/releases/download/v0.4.0/jellyfin-plugin-jellysleep-0.4.0.zip",
         "checksum": "4960282d2320de6658350cd37cac9bf6",
         "timestamp": "2025-10-20T20:49:09Z"
