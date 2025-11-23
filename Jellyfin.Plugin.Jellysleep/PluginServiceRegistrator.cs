@@ -19,6 +19,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ISleepTimerService, SleepTimerService>();
         serviceCollection.AddHostedService<SleepTimerService>(provider =>
             (SleepTimerService)provider.GetRequiredService<ISleepTimerService>());
+        serviceCollection.AddHostedService<PluginEntryPoint>();
 
         // Register event handlers
         serviceCollection.AddScoped<IEventConsumer<PlaybackStopEventArgs>, PlaybackStopConsumer>();

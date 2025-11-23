@@ -1,5 +1,6 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
+using System.Reflection;
+using System.Runtime.Loader;
 using Jellyfin.Plugin.Jellysleep.Configuration;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
@@ -7,6 +8,7 @@ using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
 
 namespace Jellyfin.Plugin.Jellysleep;
 
@@ -30,74 +32,119 @@ public class JellysleepPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         : base(applicationPaths, xmlSerializer)
     {
         Instance = this;
+        _logger = logger;
+    }
 
-        if (Configuration.IsEnabled)
+    /// <summary>
+    /// Registers the JavaScript with the JavaScript Injector plugin.
+    /// </summary>
+    public void RegisterJavascript()
+    {
+        try
         {
-            if (!string.IsNullOrWhiteSpace(applicationPaths.WebPath))
+            // Find the JavaScript Injector assembly
+            Assembly? jsInjectorAssembly = AssemblyLoadContext.All
+                .SelectMany(x => x.Assemblies)
+                .FirstOrDefault(x => x.FullName?.Contains("Jellyfin.Plugin.JavaScriptInjector", StringComparison.Ordinal) ?? false);
+
+            if (jsInjectorAssembly != null)
             {
-                var indexFile = Path.Combine(applicationPaths.WebPath, "index.html");
-                if (File.Exists(indexFile))
+                var customScriptPath = $"{Assembly.GetExecutingAssembly().GetName().Name}.Web.jellysleep.js";
+                var scriptStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(customScriptPath);
+                if (scriptStream == null)
                 {
-                    string indexContents = File.ReadAllText(indexFile);
-                    string basePath = string.Empty;
+                    _logger.LogError("Could not find embedded Jellysleep script at path: {Path}", customScriptPath);
+                    return;
+                }
 
-                    // Get base path from network config
-                    try
+                string scriptContent;
+                using (var reader = new StreamReader(scriptStream))
+                {
+                    scriptContent = reader.ReadToEnd();
+                }
+
+                // Get the PluginInterface type
+                Type? pluginInterfaceType = jsInjectorAssembly.GetType("Jellyfin.Plugin.JavaScriptInjector.PluginInterface");
+                if (pluginInterfaceType == null)
+                {
+                    _logger.LogError("Could not find PluginInterface type in JavaScript Injector assembly.");
+                    return;
+                }
+
+                // Create the registration payload
+                var scriptRegistration = new JObject
+                {
+                            { "id", $"{Id}-script" },
+                            { "name", "Jellysleep Client Script" },
+                            { "script", scriptContent },
+                            { "enabled", true },
+                            { "requiresAuthentication", true },
+                            { "pluginId", Id.ToString() },
+                            { "pluginName", Name },
+                            { "pluginVersion", Version.ToString() }
+                        };
+
+                // Register the script
+                var registerResult = pluginInterfaceType.GetMethod("RegisterScript")?.Invoke(null, new object[] { scriptRegistration });
+
+                // Validate the return value
+                if (registerResult is bool success && success)
+                {
+                    _logger.LogInformation("Successfully registered JavaScript with JavaScript Injector plugin.");
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to register JavaScript with JavaScript Injector plugin. RegisterScript returned false.");
+                }
+
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to register JavaScript with JavaScript Injector plugin.");
+        }
+    }
+
+    /// <inheritdoc />
+    public override void OnUninstalling()
+    {
+        try
+        {
+            // Find the JavaScript Injector assembly
+            Assembly? jsInjectorAssembly = AssemblyLoadContext.All
+                .SelectMany(x => x.Assemblies)
+                .FirstOrDefault(x => x.FullName?.Contains("Jellyfin.Plugin.JavaScriptInjector", StringComparison.Ordinal) ?? false);
+
+            if (jsInjectorAssembly != null)
+            {
+                Type? pluginInterfaceType = jsInjectorAssembly.GetType("Jellyfin.Plugin.JavaScriptInjector.PluginInterface");
+
+                if (pluginInterfaceType != null)
+                {
+                    // Unregister all scripts from your plugin
+                    var unregisterResult = pluginInterfaceType.GetMethod("UnregisterAllScriptsFromPlugin")?.Invoke(null, new object[] { Id.ToString() });
+
+                    // Validate the return value
+                    if (unregisterResult is int removedCount)
                     {
-                        var networkConfig = configurationManager.GetConfiguration("network");
-                        var configType = networkConfig.GetType();
-                        var basePathField = configType.GetProperty("BaseUrl");
-                        var confBasePath = basePathField?.GetValue(networkConfig)?.ToString()?.Trim('/');
-
-                        if (!string.IsNullOrEmpty(confBasePath))
-                        {
-                            basePath = "/" + confBasePath.ToString();
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogError("Unable to get base path from config, using '/': {0}", e);
-                    }
-
-                    string scriptReplace = "<script plugin=\"Jellysleep\".*?></script>";
-                    string scriptElement = string.Format(CultureInfo.InvariantCulture, "<script plugin=\"Jellysleep\" version=\"1.0.0.0\" src=\"{0}/Plugins/Jellysleep/Static/ClientScript\" defer></script>", basePath);
-
-                    if (!indexContents.Contains(scriptElement, StringComparison.Ordinal))
-                    {
-                        logger.LogInformation("Attempting to inject jellysleep script code in {0}", indexFile);
-
-                        // Replace old Jellysleep scripts
-                        indexContents = Regex.Replace(indexContents, scriptReplace, string.Empty);
-
-                        // Insert script last in body
-                        int bodyClosing = indexContents.LastIndexOf("</body>", StringComparison.Ordinal);
-                        if (bodyClosing != -1)
-                        {
-                            indexContents = indexContents.Insert(bodyClosing, scriptElement);
-
-                            try
-                            {
-                                File.WriteAllText(indexFile, indexContents);
-                                logger.LogInformation("Finished injecting jellysleep script code in {0}", indexFile);
-                            }
-                            catch (Exception e)
-                            {
-                                logger.LogError("Encountered exception while writing to {0}: {1}", indexFile, e);
-                            }
-                        }
-                        else
-                        {
-                            logger.LogInformation("Could not find closing body tag in {0}", indexFile);
-                        }
+                        _logger?.LogInformation("Successfully unregistered {Count} script(s) from JavaScript Injector plugin.", removedCount);
                     }
                     else
                     {
-                        logger.LogInformation("Found client script injected in {0}", indexFile);
+                        _logger?.LogWarning("Failed to unregister scripts from JavaScript Injector plugin. Method returned unexpected value.");
                     }
                 }
             }
         }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to unregister JavaScript scripts.");
+        }
+
+        base.OnUninstalling();
     }
+
+    private readonly ILogger<JellysleepPlugin> _logger;
 
     /// <inheritdoc />
     public override string Name => "Jellysleep";

@@ -19,7 +19,8 @@ Sleep timer plugin for Jellyfin that automatically stops playback after a specif
   - [📋 Table of Contents](#-table-of-contents)
   - [📱 Supported Devices](#-supported-devices)
   - [📦 Installation](#-installation)
-    - [🐳 Docker Installation Notes](#-docker-installation-notes)
+    - [Requirements](#requirements)
+    - [Install Plugin](#install-plugin)
   - [🚀 Usage](#-usage)
   - [🛠️ Development](#️-development)
     - [Building](#building)
@@ -40,6 +41,15 @@ This plugin works by injecting custom JavaScript into Jellyfin's web interface. 
 
 ## 📦 Installation
 
+### Requirements
+
+This plugin requires the following plugins to be installed as well:
+
+- [Jellyfin-JavaScript-Injector](https://github.com/n00bcodr/Jellyfin-JavaScript-Injector)
+- [jellyfin-plugin-file-transformation](https://github.com/IAmParadox27/jellyfin-plugin-file-transformation) (optional, but recommended)
+
+### Install Plugin
+
 1. Open your Jellyfin server's admin dashboard
 2. Navigate to **Plugins** → **Catalog**
 3. Click the **Add Repository** button
@@ -50,35 +60,6 @@ This plugin works by injecting custom JavaScript into Jellyfin's web interface. 
 5. Find **Jellysleep** in the plugin catalog and install it
 6. Restart your Jellyfin server
 7. Enable the plugin in **Plugins** → **My Plugins**
-
-### 🐳 Docker Installation Notes
-
-If you're running Jellyfin in Docker, the plugin may not have permission to modify the web interface files. If you see permission errors in your logs, you'll need to map the `index.html` file manually:
-
-1. Copy the index.html file from your container:
-
-   ```bash
-   docker cp jellyfin:/usr/share/jellyfin/web/index.html /path/to/your/jellyfin/config/index.html
-   ```
-
-2. Add a volume mapping to your Docker run command:
-
-   ```bash
-   -v /path/to/your/jellyfin/config/index.html:/usr/share/jellyfin/web/index.html
-   ```
-
-3. Or for Docker Compose, add this to your volumes section:
-   ```yaml
-   services:
-     jellyfin:
-       # ... other config
-       volumes:
-         - /path/to/your/jellyfin/config:/config
-         - /path/to/your/jellyfin/config/index.html:/usr/share/jellyfin/web/index.html
-         # ... other volumes
-   ```
-
-This gives the plugin the necessary permissions to inject the sleep timer JavaScript into the web interface.
 
 ## 🚀 Usage
 
