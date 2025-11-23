@@ -386,7 +386,7 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     /// <inheritdoc />
     public async Task CleanupTimersAsync()
     {
-        // Clean up expired cooldowns
+        // Clean up expired cooldowns and check for lingering sessions
         var expiredCooldowns = _completionCooldowns
             .Where(kvp => !kvp.Value.IsActive())
             .Select(kvp => kvp.Key)
@@ -394,6 +394,19 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
 
         foreach (var key in expiredCooldowns)
         {
+            var cooldown = _completionCooldowns[key];
+
+            // Check if there are still active sessions for this user/device after cooldown expires
+            if (IsUserSessionActive(cooldown.UserId, cooldown.DeviceId))
+            {
+                _logger.LogInformation(
+                    "Cooldown expired but user {UserId} on device {DeviceId} still has active session, terminating it",
+                    cooldown.UserId,
+                    cooldown.DeviceId ?? "unknown");
+
+                await StopPlaybackForUserAsync(cooldown.UserId, cooldown.DeviceId).ConfigureAwait(false);
+            }
+
             _completionCooldowns.TryRemove(key, out _);
         }
 
