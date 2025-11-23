@@ -1,11 +1,6 @@
-using System;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.Jellysleep.Models;
 using Jellyfin.Plugin.Jellysleep.Services;
-using MediaBrowser.Controller.Net;
 using MediaBrowser.Controller.Session;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;

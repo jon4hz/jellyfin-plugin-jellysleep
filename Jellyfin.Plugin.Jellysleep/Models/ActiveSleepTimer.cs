@@ -1,5 +1,3 @@
-using System;
-
 namespace Jellyfin.Plugin.Jellysleep.Models;
 
 /// <summary>

@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.Jellysleep.Models;
 
 namespace Jellyfin.Plugin.Jellysleep.Services;

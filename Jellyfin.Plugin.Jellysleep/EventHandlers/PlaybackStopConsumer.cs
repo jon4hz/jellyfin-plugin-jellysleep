@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Jellyfin.Plugin.Jellysleep.Services;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Library;
