@@ -462,6 +462,17 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     }
 
     /// <inheritdoc />
+    public Task<List<ActiveSleepTimer>> ListAllActiveTimersAsync()
+    {
+        var timers = _activeTimers.Values
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.StartTime)
+            .ToList();
+
+        return Task.FromResult(timers);
+    }
+
+    /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Sleep timer service started");

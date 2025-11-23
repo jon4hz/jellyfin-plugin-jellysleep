@@ -15,31 +15,307 @@
       <div data-role="content">
         <div class="content-primary">
           <form id="JellysleepConfigForm">
-            <div class="sectionTitleContainer flex align-items-center">
-              <h2 class="sectionTitle">Jellysleep Configuration</h2>
-            </div>
-
-            <div class="checkboxContainer checkboxContainer-withDescription">
-              <label class="emby-checkbox-label">
-                <input id="jellysleepEnabled" type="checkbox" is="emby-checkbox" />
-                <span>Enable Jellysleep Integration</span>
-              </label>
-              <div class="fieldDescription checkboxFieldDescription">
-                Enable or disable the Jellysleep plugin functionality.
+            <div class="verticalSection verticalSection-extrabottompadding">
+              <div class="sectionTitleContainer flex align-items-center">
+                <h2 class="sectionTitle">Jellysleep</h2>
+                <a
+                  is="emby-linkbutton"
+                  class="raised raised-mini emby-button"
+                  style="margin-left: 2em"
+                  target="_blank"
+                  href="https://github.com/jon4hz/jellyfin-plugin-jellysleep"
+                >
+                  <i class="md-icon button-icon button-icon-left secondaryText"></i>
+                  <span>Help</span>
+                </a>
               </div>
-            </div>
-            <div>
-              <button is="emby-button" type="submit" class="raised button-submit block emby-button">
-                <span>Save</span>
-              </button>
+              <hr />
+              <br />
+              <div style="margin-top: 2em">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1em">
+                  <h2 class="sectionTitle">Active Sleep Timers</h2>
+                  <button
+                    is="emby-button"
+                    type="button"
+                    class="raised emby-button"
+                    id="refreshTimersBtn"
+                    style="margin-top: 1em"
+                  >
+                    <span>Refresh</span>
+                  </button>
+                </div>
+                <div id="activeTimersContainer">
+                  <div style="padding: 2em; text-align: center; opacity: 0.6; font-style: italic">Loading...</div>
+                </div>
+              </div>
             </div>
           </form>
         </div>
       </div>
+
+      <template id="timer-card-template">
+        <div
+          style="
+            margin-bottom: 1em;
+            padding: 1em;
+            background-color: rgba(255, 255, 255, 0.02);
+            border-radius: 0.25em;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          "
+        >
+          <div style="display: flex; align-items: center; margin-bottom: 0.5em">
+            <div class="timer-user-name" style="font-weight: bold; font-size: 1.1em; flex-grow: 1"></div>
+            <span
+              class="timer-type-badge"
+              style="padding: 0.25em 0.5em; border-radius: 0.25em; font-size: 0.85em; margin-left: 0.5em"
+            ></span>
+          </div>
+          <div
+            class="timer-details"
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 0.5em;
+              margin-top: 0.5em;
+              font-size: 0.9em;
+              opacity: 0.9;
+            "
+          ></div>
+        </div>
+      </template>
+
       <script type="text/javascript">
         var JellysleepConfig = {
           pluginUniqueId: 'a760bbb5-7b7b-4fda-951c-f3c39d689a8f',
         };
+
+        function formatDateTime(dateString) {
+          if (!dateString) return 'N/A';
+          var date = new Date(dateString);
+          return date.toLocaleString();
+        }
+
+        function formatDuration(minutes) {
+          if (!minutes) return 'N/A';
+          var hours = Math.floor(minutes / 60);
+          var mins = minutes % 60;
+          if (hours > 0) {
+            return hours + 'h ' + mins + 'm';
+          }
+          return mins + 'm';
+        }
+
+        function getTimerTypeLabel(type) {
+          return type === 'duration' ? 'Duration' : 'Episode';
+        }
+
+        function truncateText(text, maxLength) {
+          if (!text) return '';
+          if (text.length <= maxLength) return text;
+          return text.substring(0, maxLength) + '...';
+        }
+
+        function escapeHtml(text) {
+          var div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
+
+        async function getUserName(userId) {
+          try {
+            var user = await ApiClient.getUser(userId);
+            return user.Name || 'Unknown User';
+          } catch (err) {
+            console.error('Error fetching user:', err);
+            return 'Unknown User';
+          }
+        }
+
+        async function getDeviceInfo(deviceId) {
+          if (!deviceId) return null;
+
+          try {
+            var response = await ApiClient.fetch({
+              type: 'GET',
+              url: ApiClient.getUrl('Devices/Info', { id: deviceId }),
+            });
+
+            var deviceInfo = await response.json();
+
+            // Build device display name like Jellyfin does
+            var parts = [];
+            if (deviceInfo.AppName) {
+              parts.push(deviceInfo.AppName);
+            }
+            if (deviceInfo.Name) {
+              parts.push(deviceInfo.Name);
+            }
+
+            return parts.length > 0 ? parts.join(' - ') : deviceId;
+          } catch (err) {
+            console.error('Error fetching device info for', deviceId, ':', err);
+            return deviceId;
+          }
+        }
+
+        async function loadActiveTimers() {
+          Dashboard.showLoadingMsg();
+          try {
+            var response = await ApiClient.fetch({
+              type: 'GET',
+              url: ApiClient.getUrl('Plugin/Jellysleep/ListTimers'),
+            });
+
+            var timers = await response.json();
+            await renderTimers(timers);
+          } catch (err) {
+            console.error('Error loading active timers:', err);
+            document.getElementById('activeTimersContainer').innerHTML =
+              '<div class="noTimers">Error loading active timers</div>';
+          } finally {
+            Dashboard.hideLoadingMsg();
+          }
+        }
+
+        async function renderTimers(timers) {
+          var container = document.getElementById('activeTimersContainer');
+
+          if (!timers || timers.length === 0) {
+            container.innerHTML =
+              '<div style="padding: 2em; text-align: center; opacity: 0.6; font-style: italic;">No active sleep timers</div>';
+            return;
+          }
+
+          // Fetch all user names and device info
+          var userNames = {};
+          var deviceInfoCache = {};
+
+          for (var i = 0; i < timers.length; i++) {
+            var timer = timers[i];
+            if (!userNames[timer.UserId]) {
+              userNames[timer.UserId] = await getUserName(timer.UserId);
+            }
+            if (timer.DeviceId && !deviceInfoCache[timer.DeviceId]) {
+              deviceInfoCache[timer.DeviceId] = await getDeviceInfo(timer.DeviceId);
+            }
+          }
+
+          // Clear container
+          container.innerHTML = '';
+
+          // Get template
+          var template = document.getElementById('timer-card-template');
+
+          for (var i = 0; i < timers.length; i++) {
+            var timer = timers[i];
+            var userName = userNames[timer.UserId];
+
+            // Clone template
+            var clone = document.importNode(template.content, true);
+
+            // Set user name
+            clone.querySelector('.timer-user-name').textContent = userName;
+
+            // Set type badge
+            var badge = clone.querySelector('.timer-type-badge');
+            badge.textContent = getTimerTypeLabel(timer.Type);
+            if (timer.Type === 'duration') {
+              badge.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
+              badge.style.color = '#3498db';
+            } else {
+              badge.style.backgroundColor = 'rgba(155, 89, 182, 0.3)';
+              badge.style.color = '#9b59b6';
+            }
+
+            // Build details HTML
+            var detailsHtml = '';
+
+            if (timer.DeviceId) {
+              var deviceDisplay = deviceInfoCache[timer.DeviceId] || timer.DeviceId;
+              var deviceDisplayTruncated = truncateText(deviceDisplay, 40);
+
+              detailsHtml += '<div style="display: flex; flex-direction: column;">';
+              detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Device</div>';
+              detailsHtml +=
+                '  <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' +
+                escapeHtml(deviceDisplay) +
+                '">' +
+                escapeHtml(deviceDisplayTruncated) +
+                '</div>';
+              detailsHtml += '</div>';
+            }
+
+            if (timer.Label) {
+              var labelDisplay = truncateText(timer.Label, 30);
+              detailsHtml += '<div style="display: flex; flex-direction: column;">';
+              detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Label</div>';
+              detailsHtml +=
+                '  <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' +
+                escapeHtml(timer.Label) +
+                '">' +
+                escapeHtml(labelDisplay) +
+                '</div>';
+              detailsHtml += '</div>';
+            }
+
+            detailsHtml += '<div style="display: flex; flex-direction: column;">';
+            detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Started</div>';
+            detailsHtml += '  <div style="font-weight: 500;">' + formatDateTime(timer.StartTime) + '</div>';
+            detailsHtml += '</div>';
+
+            if (timer.Type === 'duration') {
+              if (timer.EndTime) {
+                detailsHtml += '<div style="display: flex; flex-direction: column;">';
+                detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Ends At</div>';
+                detailsHtml += '  <div style="font-weight: 500;">' + formatDateTime(timer.EndTime) + '</div>';
+                detailsHtml += '</div>';
+              }
+              if (timer.Duration) {
+                detailsHtml += '<div style="display: flex; flex-direction: column;">';
+                detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Duration</div>';
+                detailsHtml += '  <div style="font-weight: 500;">' + formatDuration(timer.Duration) + '</div>';
+                detailsHtml += '</div>';
+              }
+              var remaining = timer.GetRemainingMinutes
+                ? timer.GetRemainingMinutes()
+                : calculateRemainingMinutes(timer.EndTime);
+              if (remaining !== null && remaining !== undefined) {
+                detailsHtml += '<div style="display: flex; flex-direction: column;">';
+                detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Remaining</div>';
+                detailsHtml += '  <div style="font-weight: 500;">' + formatDuration(remaining) + '</div>';
+                detailsHtml += '</div>';
+              }
+            } else if (timer.Type === 'episode') {
+              if (timer.EpisodeCount) {
+                detailsHtml += '<div style="display: flex; flex-direction: column;">';
+                detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Episodes</div>';
+                detailsHtml +=
+                  '  <div style="font-weight: 500;">' + timer.EpisodesPlayed + ' / ' + timer.EpisodeCount + '</div>';
+                detailsHtml += '</div>';
+              } else {
+                detailsHtml += '<div style="display: flex; flex-direction: column;">';
+                detailsHtml += '  <div style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0.2em;">Type</div>';
+                detailsHtml += '  <div style="font-weight: 500;">After current episode</div>';
+                detailsHtml += '</div>';
+              }
+            }
+
+            // Set details
+            clone.querySelector('.timer-details').innerHTML = detailsHtml;
+
+            // Append to container
+            container.appendChild(clone);
+          }
+        }
+
+        function calculateRemainingMinutes(endTime) {
+          if (!endTime) return null;
+          var end = new Date(endTime);
+          var now = new Date();
+          var diff = end - now;
+          if (diff <= 0) return 0;
+          return Math.ceil(diff / 60000);
+        }
 
         document.querySelector('#JellysleepConfigPage').addEventListener('pageshow', function () {
           Dashboard.showLoadingMsg();
@@ -47,6 +323,9 @@
             $('#jellysleepEnabled').prop('checked', config.IsEnabled || false);
             Dashboard.hideLoadingMsg();
           });
+
+          // Load active timers
+          loadActiveTimers();
         });
 
         document.querySelector('#JellysleepConfigPage').addEventListener('submit', function (e) {
@@ -61,6 +340,10 @@
 
           e.preventDefault();
           return false;
+        });
+
+        document.getElementById('refreshTimersBtn').addEventListener('click', function () {
+          loadActiveTimers();
         });
       </script>
     </div>

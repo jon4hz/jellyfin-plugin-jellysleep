@@ -69,4 +69,10 @@ public interface ISleepTimerService
     /// </summary>
     /// <returns>A task representing the async operation.</returns>
     Task CleanupTimersAsync();
+
+    /// <summary>
+    /// List all active sleep timers across all users.
+    /// </summary>
+    /// <returns>A list of all active sleep timers.</returns>
+    Task<List<ActiveSleepTimer>> ListAllActiveTimersAsync();
 }

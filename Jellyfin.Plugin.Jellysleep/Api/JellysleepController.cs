@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Jellyfin.Plugin.Jellysleep.Models;
 using Jellyfin.Plugin.Jellysleep.Services;
+using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Session;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -153,6 +154,27 @@ public class JellysleepController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting sleep timer status");
+            return StatusCode(500, "Internal server error");
+        }
+    }
+
+    /// <summary>
+    /// List all active sleep timers across all users. Requires elevated privileges.
+    /// </summary>
+    /// <returns>List of active sleep timers.</returns>
+    [Authorize(Policy = Policies.RequiresElevation)]
+    [HttpGet("ListTimers")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<ActiveSleepTimer>>> ListAllTimers()
+    {
+        try
+        {
+            var timers = await _sleepTimerService.ListAllActiveTimersAsync().ConfigureAwait(false);
+            return Ok(timers);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing all active sleep timers");
             return StatusCode(500, "Internal server error");
         }
     }
