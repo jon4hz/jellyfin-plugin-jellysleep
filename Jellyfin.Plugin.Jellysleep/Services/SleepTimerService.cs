@@ -15,7 +15,9 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     private readonly ISessionManager _sessionManager;
     private readonly ConcurrentDictionary<UserDeviceKey, ActiveSleepTimer> _activeTimers;
     private readonly ConcurrentDictionary<UserDeviceKey, SemaphoreSlim> _timerLocks;
+    private readonly ConcurrentDictionary<UserDeviceKey, CompletionCooldown> _completionCooldowns;
     private readonly Timer _cleanupTimer;
+    private const int CooldownSeconds = 3;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SleepTimerService"/> class.
@@ -28,6 +30,7 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
         _sessionManager = sessionManager;
         _activeTimers = new ConcurrentDictionary<UserDeviceKey, ActiveSleepTimer>();
         _timerLocks = new ConcurrentDictionary<UserDeviceKey, SemaphoreSlim>();
+        _completionCooldowns = new ConcurrentDictionary<UserDeviceKey, CompletionCooldown>();
 
         // Setup cleanup timer to run every 30 seconds
         _cleanupTimer = new Timer(async _ => await CleanupTimersAsync().ConfigureAwait(false), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
@@ -150,6 +153,29 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     }
 
     /// <summary>
+    /// Checks if a user/device is in a completion cooldown period.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="deviceId">The device ID.</param>
+    /// <returns>True if in cooldown period, false otherwise.</returns>
+    public Task<bool> IsInCooldownAsync(Guid userId, string? deviceId)
+    {
+        var userDeviceKey = new UserDeviceKey(userId, deviceId);
+        if (_completionCooldowns.TryGetValue(userDeviceKey, out var cooldown))
+        {
+            if (cooldown.IsActive())
+            {
+                return Task.FromResult(true);
+            }
+
+            // Remove expired cooldown
+            _completionCooldowns.TryRemove(userDeviceKey, out _);
+        }
+
+        return Task.FromResult(false);
+    }
+
+    /// <summary>
     /// Gets the status of the sleep timer for the specified user and device.
     /// </summary>
     /// <param name="userId">The user ID.</param>
@@ -208,12 +234,21 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
             if (timer.EpisodesPlayed >= timer.EpisodeCount)
             {
                 _logger.LogInformation(
-                    "Multi-episode timer completed for user {UserId} on device {DeviceId}, episodes: {EpisodesPlayed}/{EpisodeCount}, timer {TimerId}",
+                    "Multi-episode timer completed for user {UserId} on device {DeviceId}, episodes: {EpisodesPlayed}/{EpisodeCount}, timer {TimerId}. Setting {CooldownSeconds}s cooldown.",
                     userId,
                     deviceId ?? "unknown",
                     timer.EpisodesPlayed,
                     timer.EpisodeCount,
-                    timer.Id);
+                    timer.Id,
+                    CooldownSeconds);
+
+                // Set cooldown to prevent immediate new playback
+                _completionCooldowns[userDeviceKey] = new CompletionCooldown
+                {
+                    UserId = userId,
+                    DeviceId = deviceId,
+                    ExpiresAt = DateTime.UtcNow.AddSeconds(CooldownSeconds)
+                };
 
                 // Stop all playback for this user/device
                 await StopPlaybackForUserAsync(timer.UserId, timer.DeviceId).ConfigureAwait(false);
@@ -231,10 +266,19 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
         {
             // This is a simple "after current episode" timer
             _logger.LogInformation(
-                "Simple episode timer completed for user {UserId} on device {DeviceId}, timer {TimerId}",
+                "Simple episode timer completed for user {UserId} on device {DeviceId}, timer {TimerId}. Setting {CooldownSeconds}s cooldown.",
                 userId,
                 deviceId ?? "unknown",
-                timer.Id);
+                timer.Id,
+                CooldownSeconds);
+
+            // Set cooldown to prevent immediate new playback
+            _completionCooldowns[userDeviceKey] = new CompletionCooldown
+            {
+                UserId = userId,
+                DeviceId = deviceId,
+                ExpiresAt = DateTime.UtcNow.AddSeconds(CooldownSeconds)
+            };
 
             // This episode has finished, now we need to stop all playback for this user/device
             await StopPlaybackForUserAsync(timer.UserId, timer.DeviceId).ConfigureAwait(false);
@@ -342,6 +386,17 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     /// <inheritdoc />
     public async Task CleanupTimersAsync()
     {
+        // Clean up expired cooldowns
+        var expiredCooldowns = _completionCooldowns
+            .Where(kvp => !kvp.Value.IsActive())
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        foreach (var key in expiredCooldowns)
+        {
+            _completionCooldowns.TryRemove(key, out _);
+        }
+
         var expiredTimers = new List<KeyValuePair<UserDeviceKey, ActiveSleepTimer>>();
 
         foreach (var kvp in _activeTimers)

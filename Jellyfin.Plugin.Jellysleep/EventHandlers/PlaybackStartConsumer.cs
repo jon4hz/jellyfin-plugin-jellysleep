@@ -44,6 +44,36 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                 return;
             }
 
+            // Check if we're in a cooldown period after timer completion
+            var inCooldown = await _sleepTimerService.IsInCooldownAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+            if (inCooldown)
+            {
+                _logger.LogInformation(
+                    "Stopping playback in session {SessionId} for user {UserId} - in cooldown period after timer completion. Item: {ItemName}",
+                    session.Id,
+                    session.UserId,
+                    eventArgs.Item?.Name ?? "Unknown");
+
+                // Stop this playback immediately
+                await _sessionManager.SendPlaystateCommand(
+                    session.Id,
+                    session.Id,
+                    new MediaBrowser.Model.Session.PlaystateRequest
+                    {
+                        Command = MediaBrowser.Model.Session.PlaystateCommand.Stop
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+
+                return;
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "No cooldown for user {UserId} on device {DeviceId}. Continuing playback.",
+                    session.UserId,
+                    session.DeviceId);
+            }
+
             // check if there is an active sleep timer for this user and device
             var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
             if (timerStatus == null || !timerStatus.IsActive)

@@ -33,6 +33,14 @@ public interface ISleepTimerService
     Task<SleepTimerStatusResponse> GetTimerStatusAsync(Guid userId, string? deviceId);
 
     /// <summary>
+    /// Checks if a user/device is in a completion cooldown period.
+    /// </summary>
+    /// <param name="userId">The user ID.</param>
+    /// <param name="deviceId">The device ID.</param>
+    /// <returns>True if in cooldown period, false otherwise.</returns>
+    Task<bool> IsInCooldownAsync(Guid userId, string? deviceId);
+
+    /// <summary>
     /// Handle playback stop event for episode-based timers.
     /// </summary>
     /// <param name="userId">The user ID.</param>
