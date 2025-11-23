@@ -23,7 +23,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 
         // Register event handlers
         serviceCollection.AddScoped<IEventConsumer<PlaybackStopEventArgs>, PlaybackStopConsumer>();
-        serviceCollection.AddScoped<IEventConsumer<SessionStartedEventArgs>, SessionStartConsumer>();
         serviceCollection.AddScoped<IEventConsumer<PlaybackStartEventArgs>, PlaybackStartConsumer>();
     }
 }

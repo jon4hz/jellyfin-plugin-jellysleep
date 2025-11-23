@@ -44,6 +44,7 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
 
             if (session?.UserId == null || session.UserId == Guid.Empty)
             {
+                _logger.LogDebug("Playback started with no valid user or session ID.");
                 return;
             }
 
@@ -51,6 +52,7 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
             var timerStatus = await _sleepTimerService.GetTimerStatusAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
             if (timerStatus == null || !timerStatus.IsActive)
             {
+                _logger.LogDebug("No active sleep timer for user {UserId} on device {DeviceId}.", session.UserId, session.DeviceId);
                 return;
             }
 
@@ -60,13 +62,15 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                 session.Id,
                 eventArgs.Item?.Name ?? "Unknown");
 
-            if (timerStatus.Type == "episode")
+            if (timerStatus.Type == "episode" && timerStatus.EpisodeCount >= 1)
             {
-                // Check if we've reached the target episode count for multi-episode timers
-                if (timerStatus.EpisodeCount >= 1 && timerStatus.EpisodesPlayed >= timerStatus.EpisodeCount)
+                // For multi-episode timers, check if we've already reached the target
+                // The episode count is incremented in PlaybackStopConsumer, so if we're at or over
+                // the target when a new episode starts, we should stop it immediately
+                if (timerStatus.EpisodesPlayed >= timerStatus.EpisodeCount)
                 {
                     _logger.LogInformation(
-                        "Stopping playback in session {SessionId} for user {UserId} - episode timer target reached. Episodes: {EpisodesPlayed}/{EpisodeCount}, Item: {ItemName}",
+                        "Stopping playback in session {SessionId} for user {UserId} - episode timer target already reached. Episodes: {EpisodesPlayed}/{EpisodeCount}, Item: {ItemName}",
                         session.Id,
                         session.UserId,
                         timerStatus.EpisodesPlayed,
@@ -88,7 +92,7 @@ public class PlaybackStartConsumer : IEventConsumer<PlaybackStartEventArgs>
                 }
                 else
                 {
-                    _logger.LogInformation(
+                    _logger.LogDebug(
                         "Allowing new playback in session {SessionId} for user {UserId} - episode timer still has episodes remaining. Episodes: {EpisodesPlayed}/{EpisodeCount}, Item: {ItemName}",
                         session.Id,
                         session.UserId,

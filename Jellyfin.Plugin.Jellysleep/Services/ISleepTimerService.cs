@@ -55,8 +55,8 @@ public interface ISleepTimerService
     /// </summary>
     /// <param name="userId">The user ID.</param>
     /// <param name="deviceId">The device ID.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task IncrementEpisodeCountAsync(Guid userId, string? deviceId);
+    /// <returns>True if the target episode count was reached, false otherwise.</returns>
+    Task<bool> IncrementEpisodeCountAsync(Guid userId, string? deviceId);
 
     /// <summary>
     /// Clean up expired timers and inactive sessions.

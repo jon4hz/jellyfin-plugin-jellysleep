@@ -54,14 +54,26 @@ public class PlaybackStopConsumer : IEventConsumer<PlaybackStopEventArgs>
 
             if (eventArgs.PlayedToCompletion)
             {
-                // Only increment episode count - don't trigger timer completion here
-                // The PlaybackStartConsumer will handle stopping playback when target is reached
-                await _sleepTimerService.IncrementEpisodeCountAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
+                // Increment episode count and check if target was reached
+                var targetReached = await _sleepTimerService.IncrementEpisodeCountAsync(session.UserId, session.DeviceId).ConfigureAwait(false);
 
-                _logger.LogInformation(
-                    "Episode completed for user {UserId} in session {SessionId}, episode count incremented",
-                    session.UserId,
-                    session.Id);
+                if (targetReached)
+                {
+                    _logger.LogInformation(
+                        "Episode timer target reached after completion for user {UserId} in session {SessionId}",
+                        session.UserId,
+                        session.Id);
+
+                    // For simple episode timers (no count), complete the timer now
+                    await _sleepTimerService.HandlePlaybackStopAsync(session.UserId, session.Id).ConfigureAwait(false);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Episode completed for user {UserId} in session {SessionId}, episode count incremented",
+                        session.UserId,
+                        session.Id);
+                }
             }
             else
             {

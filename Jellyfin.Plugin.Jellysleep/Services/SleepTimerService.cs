@@ -19,6 +19,7 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     private readonly ILogger<SleepTimerService> _logger;
     private readonly ISessionManager _sessionManager;
     private readonly ConcurrentDictionary<UserDeviceKey, ActiveSleepTimer> _activeTimers;
+    private readonly ConcurrentDictionary<UserDeviceKey, SemaphoreSlim> _timerLocks;
     private readonly Timer _cleanupTimer;
 
     /// <summary>
@@ -31,6 +32,7 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
         _logger = logger;
         _sessionManager = sessionManager;
         _activeTimers = new ConcurrentDictionary<UserDeviceKey, ActiveSleepTimer>();
+        _timerLocks = new ConcurrentDictionary<UserDeviceKey, SemaphoreSlim>();
 
         // Setup cleanup timer to run every 30 seconds
         _cleanupTimer = new Timer(async _ => await CleanupTimersAsync().ConfigureAwait(false), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
@@ -139,6 +141,13 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
                 timer.Id,
                 userId,
                 deviceId ?? "unknown");
+
+            // Clean up the lock
+            if (_timerLocks.TryRemove(userDeviceKey, out var semaphore))
+            {
+                semaphore.Dispose();
+            }
+
             return Task.FromResult(true);
         }
 
@@ -282,14 +291,27 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     }
 
     /// <inheritdoc />
-    public Task IncrementEpisodeCountAsync(Guid userId, string? deviceId)
+    public async Task<bool> IncrementEpisodeCountAsync(Guid userId, string? deviceId)
     {
         var userDeviceKey = new UserDeviceKey(userId, deviceId);
 
-        if (_activeTimers.TryGetValue(userDeviceKey, out var timer) &&
-            timer.IsActive &&
-            timer.Type == "episode")
+        // Get or create a lock for this user/device combination
+        var semaphore = _timerLocks.GetOrAdd(userDeviceKey, _ => new SemaphoreSlim(1, 1));
+
+        await semaphore.WaitAsync().ConfigureAwait(false);
+        try
         {
+            if (!_activeTimers.TryGetValue(userDeviceKey, out var timer) ||
+                !timer.IsActive ||
+                timer.Type != "episode")
+            {
+                _logger.LogDebug(
+                    "No active episode timer found to increment for user {UserId}, device {DeviceId}",
+                    userId,
+                    deviceId ?? "unknown");
+                return false;
+            }
+
             timer.EpisodesPlayed++;
 
             _logger.LogInformation(
@@ -299,16 +321,27 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
                 deviceId ?? "unknown",
                 timer.EpisodesPlayed,
                 timer.EpisodeCount ?? 1);
-        }
-        else
-        {
-            _logger.LogDebug(
-                "No active episode timer found to increment for user {UserId}, device {DeviceId}",
-                userId,
-                deviceId ?? "unknown");
-        }
 
-        return Task.CompletedTask;
+            // Check if we've reached the target for multi-episode timers
+            if (timer.IsEpisodeCountTimer() && timer.EpisodesPlayed >= timer.EpisodeCount)
+            {
+                _logger.LogInformation(
+                    "Episode timer target reached for timer {TimerId} (user {UserId}, device {DeviceId}): {EpisodesPlayed}/{EpisodeCount}",
+                    timer.Id,
+                    userId,
+                    deviceId ?? "unknown",
+                    timer.EpisodesPlayed,
+                    timer.EpisodeCount);
+
+                return true; // Indicates target reached
+            }
+
+            return false; // Target not yet reached
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -356,8 +389,12 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
                 await StopPlaybackForUserAsync(timer.UserId, timer.DeviceId).ConfigureAwait(false);
             }
 
-            // Remove the timer
+            // Remove the timer and its lock
             _activeTimers.TryRemove(userDeviceKey, out _);
+            if (_timerLocks.TryRemove(userDeviceKey, out var semaphore))
+            {
+                semaphore.Dispose();
+            }
         }
     }
 
@@ -451,6 +488,14 @@ public class SleepTimerService : BackgroundService, ISleepTimerService
     public override void Dispose()
     {
         _cleanupTimer?.Dispose();
+
+        // Dispose all semaphores
+        foreach (var semaphore in _timerLocks.Values)
+        {
+            semaphore.Dispose();
+        }
+        _timerLocks.Clear();
+
         base.Dispose();
         GC.SuppressFinalize(this);
     }
