@@ -13,6 +13,7 @@
   let isActive = false;
   let currentTimerType = null;
   let isLoadingStatus = false;
+  let locale = navigator.language; // Browser locale, could be loaded from server
 
   /**
    * Sleep timer options with their respective durations in minutes
@@ -122,6 +123,7 @@
     sleepButton.className = 'btnJellysleep autoSize paper-icon-button-light';
     sleepButton.title = 'Sleep Timer';
     sleepButton.setAttribute('aria-label', 'Sleep Timer');
+    sleepButton.style.display = 'block';
     sleepButton.innerHTML = `
             <span class="xlargePaperIconButton material-icons" aria-hidden="true">bedtime_off</span>
         `;
@@ -161,6 +163,13 @@
 
     const scroller = document.createElement('div');
     scroller.className = 'actionSheetScroller scrollY';
+
+    const displayTimer = document.createElement('div');
+    displayTimer.className = 'displayTimer';
+    displayTimer.disabled = true;
+    displayTimer.style.padding = '.4em 1em .4em 1.1em';
+
+    scroller.appendChild(displayTimer);
 
     // Add menu items
     Object.keys(SLEEP_OPTIONS).forEach(key => {
@@ -251,6 +260,8 @@
     // Store event handlers for cleanup
     sleepMenu.outsideClickHandler = outsideClickHandler;
     sleepMenu.escapeHandler = escapeHandler;
+
+    updateDisplayTimer();
   }
 
   /**
@@ -559,8 +570,8 @@
         isActive = true;
         currentTimerType = response.type;
 
-        if (response.endTime) {
-          sleepTimerEndTime = new Date(response.endTime);
+          if (response.endTime) {
+            sleepTimerEndTime = new Date(Date.parse(response.endTime));
         }
 
         updateButtonAppearance();
@@ -576,6 +587,31 @@
     } finally {
       isLoadingStatus = false;
     }
+  }
+
+  async function updateDisplayTimer() {
+    const displayTimer = document.querySelector('.displayTimer');
+
+    if (!displayTimer) {
+      return;
+    }
+
+    if (isActive === false || currentTimerType === 'episode') {
+      displayTimer.style.display = 'none';
+      return;
+    }
+    const remaingTime = new Date(sleepTimerEndTime - new Date() + (new Date().getTimezoneOffset() * 60 * 1000));
+    if (remaingTime) {
+      displayTimer.innerHTML = remaingTime.toLocaleTimeString(locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    setTimeout(() => {
+      updateDisplayTimer();
+    }, 200);
   }
 
   // Initialize when script loads

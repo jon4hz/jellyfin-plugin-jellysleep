@@ -6,3 +6,4 @@ artifacts
 .venv/
 .crush/
 .ansible/
+build.ps1
