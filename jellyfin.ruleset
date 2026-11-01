@@ -67,6 +67,8 @@
         <!-- TODO: enable when false positives are fixed -->
         <!-- disable warning CA1508: Avoid dead conditional code -->
         <Rule Id="CA1508" Action="Info" />
+        <!-- disable warning CA1873: Avoid potentially expensive logging -->
+        <Rule Id="CA1873" Action="Info" />
         <!-- disable warning CA1716: Identifiers should not match keywords -->
         <Rule Id="CA1716" Action="Info" />
         <!-- disable warning CA1720: Identifiers should not contain type names -->

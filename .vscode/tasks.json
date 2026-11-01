@@ -3,14 +3,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            // A chain task - build the plugin, then copy it to your
-            // jellyfin server's plugin directory
+            // Build the plugin, then install it into the jellyfin data dir
             "label": "build-and-copy",
             "dependsOrder": "sequence",
-            "dependsOn": ["build", "make-plugin-dir", "copy-dll"]
+            "dependsOn": ["build", "copy-plugin"]
         },
         {
-            // Build the plugin
+            // dotnet publish defaults to Release; the csproj's CreatePluginPackage
+            // target collects exactly the files the plugin ships into bin/plugin/
             "label": "build",
             "command": "dotnet",
             "type": "shell",
@@ -22,21 +22,11 @@
             "problemMatcher": "$msCompile"
         },
         {
-            // Ensure the plugin directory exists before trying to use it
-            "label": "make-plugin-dir",
+            // Replace the installed plugin with exactly the files of the release zip
+            // (dll, xml docs, bundled dependencies); a clean dir avoids stale DLLs
+            "label": "copy-plugin",
             "type": "shell",
-            "command": "mkdir",
-            "args": ["-p", "${config:jellyfinDataDir}/plugins/${config:pluginName}/"]
-        },
-        {
-            // Copy the plugin dll to the jellyfin plugin install path
-            // This command copies every .dll from the build directory to the plugin dir
-            // Usually, you probablly only need ${config:pluginName}.dll
-            // But some plugins may bundle extra requirements
-            "label": "copy-dll",
-            "type": "shell",
-            "command": "cp",
-            "args": ["./${config:pluginName}/bin/Release/net9.0/${config:pluginName}.dll", "${config:jellyfinDataDir}/plugins/${config:pluginName}/"]
+            "command": "rm -rf \"${config:jellyfinDataDir}/plugins/${config:pluginName}\" && mkdir -p \"${config:jellyfinDataDir}/plugins/${config:pluginName}\" && cp ${workspaceFolder}/bin/plugin/* \"${config:jellyfinDataDir}/plugins/${config:pluginName}/\""
         }
     ]
 }

@@ -1,0 +1,17 @@
+name: Release
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g. 1.0.0)'
+        required: true
+        type: string
+jobs:
+  release:
+    uses: jon4hz/jellyfin-plugin-ci/.github/workflows/release.yml@v0.1.0
+    permissions:
+      contents: write
+    with:
+      version: ${{ inputs.version || github.ref_name }}
